@@ -449,6 +449,7 @@
       <div class="lab">Behaviours & points</div>
       <div id="setJobs"></div>
       <button class="addmini" onclick="setAddJob()">+ Add behaviour</button>
+      <button class="addmini" style="margin-top:8px;" onclick="restoreDefaultJobs()">↻ Use the standard list</button>
     </div>
 
     <button class="btn" onclick="saveSettings()">Save changes</button>
@@ -505,9 +506,9 @@
     {id:"j4",label:"Readers read",emoji:"📖",pts:2},
     {id:"j5",label:"Spelling words practiced",emoji:"🔤",pts:2},
     {id:"j6",label:"Improved handwriting",emoji:"✍️",pts:2},
-    {id:"j7",label:"Personal belongings away",emoji:"🧺",pts:1},
+    {id:"j7",label:"Belongings put away",emoji:"🧺",pts:1},
     {id:"j8",label:"Completing daily job",emoji:"✅",pts:2},
-    {id:"j9",label:"Practicing core values",emoji:"💛",pts:2},
+    {id:"j9",label:"Practicing school values",emoji:"💛",pts:2},
     {id:"j10",label:"Going the extra mile",emoji:"⭐",pts:3}
   ];
   var STORE_KEY = "classrivals_v1";
@@ -1353,6 +1354,14 @@
     });
   }
   window.setAddJob = function(){ setJobsScratch.push({id:uid("j"),label:"",emoji:"⭐",pts:1}); drawSetJobs(); };
+  // behaviours are stored per class, so a class made before the list changed keeps the old one.
+  // this pulls the current standard list in.
+  window.restoreDefaultJobs = function(){
+    if(!confirm("Replace this class's behaviours with the standard list?\n\nAny you've added or edited here will be lost.")) return;
+    setJobsScratch = DEFAULT_JOBS.map(function(j){ return Object.assign({},j); });
+    drawSetJobs();
+    toast("Standard list loaded — tap Save changes");
+  };
 
   window.saveSettings = function(){
     var name=document.getElementById("setName").value.trim();
