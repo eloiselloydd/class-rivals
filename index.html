@@ -433,6 +433,11 @@
     <h3>Settings</h3>
 
     <div class="setrow">
+      <div class="lab">Your account</div>
+      <div id="authBox"></div>
+    </div>
+
+    <div class="setrow">
       <div class="lab">Your school</div>
       <div id="setSchool"></div>
     </div>
@@ -547,6 +552,103 @@
     return h;
   }
   function sbBase(){ return SB_URL + "/rest/v1/" + SB_TABLE; }
+
+  // ---------- sign in (magic link) ----------
+  // Optional for now: the app works signed out exactly as before. Signing in claims
+  // your class to your account so nobody else can quietly overwrite it.
+  var AUTH_KEY = "classrivals_session";
+  var session = null;        // { access_token, refresh_token, expires_at, user:{id,email} }
+
+  function loadSession(){
+    try{ var v = localStorage.getItem(AUTH_KEY); session = v ? JSON.parse(v) : null; }catch(e){ session = null; }
+    if(session && session.expires_at && session.expires_at * 1000 < Date.now()) session = null;
+    return session;
+  }
+  function saveSession(s){
+    session = s;
+    try{ s ? localStorage.setItem(AUTH_KEY, JSON.stringify(s)) : localStorage.removeItem(AUTH_KEY); }catch(e){}
+  }
+  function authHeaders(){
+    // when signed in, act as that user so row-level rules apply
+    var h = { "apikey":SB_KEY, "Content-Type":"application/json" };
+    h["Authorization"] = "Bearer " + (session && session.access_token ? session.access_token : SB_KEY);
+    return h;
+  }
+  window.sendMagicLink = async function(){
+    var email = (document.getElementById("authEmail").value || "").trim().toLowerCase();
+    if(!email || email.indexOf("@") < 1){ toast("Enter your email address"); return; }
+    var btn = document.getElementById("authSendBtn");
+    if(btn){ btn.disabled = true; btn.textContent = "Sending…"; }
+    try{
+      var r = await fetch(SB_URL + "/auth/v1/otp", {
+        method:"POST",
+        headers:{ "apikey":SB_KEY, "Content-Type":"application/json" },
+        body:JSON.stringify({ email:email, create_user:true,
+          options:{ email_redirect_to: location.origin + location.pathname } })
+      });
+      if(r.ok){
+        document.getElementById("authForm").hidden = true;
+        document.getElementById("authSent").hidden = false;
+        document.getElementById("authSentTo").textContent = email;
+      } else {
+        var e = await r.json().catch(function(){ return {}; });
+        toast(e.msg || e.error_description || "Couldn't send the link, try again");
+      }
+    }catch(e){ toast("Couldn't reach the server"); }
+    if(btn){ btn.disabled = false; btn.textContent = "Email me a sign-in link"; }
+  };
+  // the magic link returns with tokens in the URL hash
+  async function captureMagicLinkReturn(){
+    if(!location.hash || location.hash.indexOf("access_token") === -1) return false;
+    var p = new URLSearchParams(location.hash.slice(1));
+    var at = p.get("access_token");
+    if(!at) return false;
+    var s = { access_token:at, refresh_token:p.get("refresh_token"),
+              expires_at: Math.floor(Date.now()/1000) + parseInt(p.get("expires_in")||"3600",10) };
+    try{
+      var r = await fetch(SB_URL + "/auth/v1/user", { headers:{ "apikey":SB_KEY, "Authorization":"Bearer "+at } });
+      if(r.ok){ var u = await r.json(); s.user = { id:u.id, email:u.email }; }
+    }catch(e){}
+    saveSession(s);
+    history.replaceState(null, "", location.pathname + location.search);
+    await ensureProfile();
+    return true;
+  }
+  // make sure there's a profile row for this user (RLS only lets you write your own)
+  async function ensureProfile(){
+    if(!session || !session.user) return;
+    try{
+      await fetch(SB_URL + "/rest/v1/profiles?on_conflict=id", {
+        method:"POST",
+        headers:Object.assign(authHeaders(), { "Prefer":"resolution=merge-duplicates,return=minimal" }),
+        body:JSON.stringify([{ id:session.user.id, email:session.user.email }])
+      });
+    }catch(e){}
+  }
+  window.signOut = function(){
+    saveSession(null);
+    renderAuthUI();
+    toast("Signed out");
+  };
+  function renderAuthUI(){
+    var box = document.getElementById("authBox"); if(!box) return;
+    if(session && session.user){
+      box.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">'+
+        '<span style="font-size:20px;">✅</span>'+
+        '<div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:13px;">Signed in</div>'+
+        '<div style="font-size:11px;color:var(--muted);font-weight:600;word-break:break-all;">'+esc(session.user.email)+'</div></div></div>'+
+        '<button class="addmini" style="margin-top:10px;" onclick="signOut()">Sign out</button>';
+    } else {
+      box.innerHTML = '<p style="font-size:13px;color:var(--muted);font-weight:600;margin:0 0 10px;line-height:1.45;">'+
+        'Optional for now. Signing in links this class to you, so it can\'t be overwritten by another device.</p>'+
+        '<div id="authForm">'+
+          '<input id="authEmail" type="email" placeholder="you@school.nz" style="width:100%;border:2px solid var(--line);border-radius:10px;padding:11px;font-size:14px;font-family:inherit;background:#fff;color:var(--ink);margin-bottom:8px;">'+
+          '<button class="addmini" id="authSendBtn" onclick="sendMagicLink()">Email me a sign-in link</button>'+
+        '</div>'+
+        '<div id="authSent" hidden><div class="dupe" style="background:var(--indigo-tint);border-color:rgba(76,75,158,.3);color:var(--indigo);">'+
+          '📧 Link sent to <b id="authSentTo"></b>. Open it on this device to finish signing in.</div></div>';
+    }
+  }
   function setSyncStatus(s){
     sync.status = s;
     var p = document.getElementById("syncPill");
@@ -1331,6 +1433,7 @@
 
   window.openSettings = function(){
     var me=state.me;
+    renderAuthUI();
     renderSetSchool();
     loadTakenCrests(state.school ? state.school.code : null, me.code);
     setYearVal = me.year || "";
@@ -1454,8 +1557,10 @@
   }
 
   // ---------- boot ----------
-  function boot(){
+  async function boot(){
     buildNav();
+    loadSession();
+    await captureMagicLinkReturn();   // handles coming back from the emailed link
     // school search box: debounced live search
     var si = document.getElementById("schoolSearchIn");
     if(si){
