@@ -168,6 +168,22 @@
   .addkid{background:none;border:2px dashed var(--line);border-radius:12px;padding:12px;width:100%;font-weight:800;color:var(--indigo);cursor:pointer;font-size:13px;margin-bottom:20px;}
   .codeshow{text-align:center;background:var(--card);border:2px solid var(--line);border-radius:18px;padding:26px 18px;margin:20px 0;box-shadow:var(--shadow);}
   .codeshow .big{font-size:34px;font-weight:800;letter-spacing:.14em;color:var(--indigo);margin:8px 0;}
+  .codeshow + .codeshow{margin-top:12px;}
+  .schoolrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:8px;cursor:pointer;font-family:inherit;}
+  .schoolrow:active{transform:scale(.98);}
+  .schoolrow .em{font-size:22px;flex:none;}
+  .schoolrow .mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .schoolrow .nm{font-size:15px;font-weight:800;color:var(--ink);}
+  .schoolrow .sb{font-size:12px;color:var(--muted);font-weight:600;}
+  .schoolrow .go{font-size:20px;color:var(--muted);flex:none;}
+  .dupe{background:var(--gold-soft);border:2px solid rgba(224,164,34,.4);border-radius:14px;padding:13px 15px;margin-bottom:14px;font-size:13px;font-weight:600;line-height:1.45;color:#7a5406;}
+  /* league view toggle */
+  .segs{display:flex;gap:6px;background:rgba(33,30,28,.06);border-radius:12px;padding:4px;margin-bottom:16px;}
+  .segs button{flex:1;border:none;background:none;padding:9px 6px;border-radius:9px;font-weight:800;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;}
+  .segs button.on{background:var(--card);color:var(--indigo);box-shadow:0 1px 3px rgba(33,30,28,.12);}
+  .schoolbar{display:flex;align-items:center;gap:10px;background:var(--card);border:2px solid var(--line);border-radius:16px;padding:11px 14px;margin-bottom:14px;}
+  .schoolbar .l{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+  .schoolbar .n{font-size:15px;font-weight:800;}
   .codeshow p{font-size:13px;color:var(--muted);font-weight:600;margin:0;}
 
   /* ---------- Settings sheet ---------- */
@@ -200,13 +216,53 @@
         <h2>Class Rivals</h2>
         <p>Turn great behaviour into a game your class loves. Award points, crown a weekly star, and put your classroom up against other classes.</p>
       </div>
-      <button class="btn" onclick="goStep('stepCreate')">Create your class</button>
+      <button class="btn" onclick="goStep('stepSchool')">Get started</button>
       <button class="btn ghost" onclick="goStep('stepJoin')">I've got a class code</button>
+    </div>
+
+    <!-- find your school -->
+    <div class="step" id="stepSchool">
+      <div class="hero"><div class="big">🏫</div><h2>Find your school</h2><p>Join your school so your classes can compete with each other automatically.</p></div>
+      <div class="fld">
+        <label>Search for your school</label>
+        <input id="schoolSearchIn" placeholder="Start typing a school name…" autocomplete="off">
+      </div>
+      <div id="schoolResults"></div>
+      <p style="font-size:12px;color:var(--muted);text-align:center;margin:14px 2px;font-weight:600;">Can't find it? You might be the first teacher here.</p>
+      <button class="btn ghost" onclick="goStep('stepSchoolNew')">➕ Create a new school</button>
+      <button class="btn ghost" onclick="goStep('stepWelcome')">Back</button>
+    </div>
+
+    <!-- enter school code to join -->
+    <div class="step" id="stepSchoolJoin">
+      <div class="hero"><div class="big">🔐</div><h2 id="sjName">Join school</h2><p>Enter the school code from a teacher who's already set up here.</p></div>
+      <div class="fld">
+        <label>School code</label>
+        <input id="schoolCodeIn" placeholder="ABCD-1234" style="text-transform:uppercase;letter-spacing:.1em;font-weight:800;">
+      </div>
+      <button class="btn" onclick="joinSchool()">Join school →</button>
+      <button class="btn ghost" onclick="goStep('stepSchool')">Back to search</button>
+    </div>
+
+    <!-- create a new school -->
+    <div class="step" id="stepSchoolNew">
+      <div class="hero"><div class="big">🏫</div><h2>Create your school</h2><p>You'll get a school code to share with the other teachers.</p></div>
+      <div class="fld">
+        <label>School name</label>
+        <input id="newSchoolName" placeholder="e.g. Takapuna Primary School" maxlength="48">
+      </div>
+      <div class="fld">
+        <label>Suburb / town</label>
+        <input id="newSchoolSuburb" placeholder="e.g. Takapuna, Auckland" maxlength="40">
+      </div>
+      <div id="dupeWarn"></div>
+      <button class="btn" onclick="createSchool()">Create school →</button>
+      <button class="btn ghost" onclick="goStep('stepSchool')">Back</button>
     </div>
 
     <!-- create -->
     <div class="step" id="stepCreate">
-      <div class="hero"><div class="big">🏫</div><h2>Name your class</h2><p>This is what other classes will see on the league table.</p></div>
+      <div class="hero"><div class="big">🍎</div><h2>Name your class</h2><p id="createSub">This is what other classes will see on the league table.</p></div>
       <div class="fld">
         <label>Class name</label>
         <input id="famNameIn" placeholder="e.g. Room 12 / Ms Shanahan's Class" maxlength="24">
@@ -228,7 +284,12 @@
       <div class="codeshow">
         <p>YOUR CLASS CODE</p>
         <div class="big" id="revealCode">—</div>
-        <p>One class, one code.</p>
+        <p>For other teachers in your own class.</p>
+      </div>
+      <div class="codeshow" id="revealSchoolBox" hidden>
+        <p>YOUR SCHOOL CODE</p>
+        <div class="big" id="revealSchoolCode">—</div>
+        <p>Share this with other teachers at your school.</p>
       </div>
       <button class="btn gold" onclick="copyCode(document.getElementById('revealCode').textContent)">Copy code</button>
       <button class="btn" onclick="finishOnb()">Start awarding points →</button>
@@ -288,7 +349,19 @@
 
   <!-- PAGE: THE LEAGUE -->
   <div class="page" id="pgLeague">
-    <div class="seclbl"><span class="txt">The league · this week</span><span class="rule"></span></div>
+    <div class="segs">
+      <button id="segSchool" class="on" onclick="setLeagueView('school')">🏫 My school</button>
+      <button id="segInter" onclick="setLeagueView('inter')">🌏 School vs school</button>
+    </div>
+    <div class="schoolbar" id="schoolBar" hidden>
+      <span style="font-size:22px;">🏫</span>
+      <div style="flex:1;min-width:0;">
+        <div class="l">Your school</div>
+        <div class="n" id="sbName">—</div>
+      </div>
+      <button class="code" onclick="copyCode(state.school && state.school.code)">🔗 <b id="sbCode">—</b></button>
+    </div>
+    <div class="seclbl"><span class="txt" id="leagueLbl">This week</span><span class="rule"></span></div>
     <div id="leagueList"></div>
     <div class="addfriend">
       <p>➕ Add another class by its code to see them on the league (same school or across schools).</p>
@@ -403,7 +476,8 @@
   async function pushMine(){
     if(!sync.on || !state || !state.me) return;
     state.rev = (state.rev||0) + 1;
-    var body = [{ id:state.me.code, rev:state.rev, data:myPayload(), updated_by:clientId }];
+    var body = [{ id:state.me.code, rev:state.rev, data:myPayload(), updated_by:clientId,
+                  school: state.school ? state.school.code : null }];
     try{
       var r = await fetch(sbBase()+"?on_conflict=id", {
         method:"POST",
@@ -441,6 +515,7 @@
           friendData[row.id] = row.data || {};
         }
       });
+      await loadSchoolMates();
       if(!changed) renderLeague();
     }catch(e){ setSyncStatus("err"); }
   }
@@ -490,12 +565,92 @@
 
   // ---------- onboarding ----------
   window.goStep = function(id){
-    ["stepWelcome","stepCreate","stepCode","stepJoin"].forEach(function(s){
-      document.getElementById(s).classList.toggle("show", s===id);
+    ["stepWelcome","stepSchool","stepSchoolJoin","stepSchoolNew","stepCreate","stepCode","stepJoin"].forEach(function(s){
+      var el = document.getElementById(s); if(el) el.classList.toggle("show", s===id);
     });
-    if(id==="stepCreate" && !buildKids.length){ addKidRow(); addKidRow(); renderCrestPick(); }
+    if(id==="stepCreate"){
+      if(!buildKids.length){ addKidRow(); addKidRow(); }
+      renderCrestPick();
+      var sub = document.getElementById("createSub");
+      if(sub && pendingSchool) sub.innerHTML = "Adding a class at <b>"+esc(pendingSchool.name)+"</b>.";
+    }
+    if(id==="stepSchool"){ setTimeout(function(){ var i=document.getElementById("schoolSearchIn"); if(i) i.focus(); }, 60); }
     window.scrollTo(0,0);
   };
+
+  // ---------- schools ----------
+  var pendingSchool = null;      // school chosen during onboarding {code,name,suburb}
+  var searchTimer = null;
+  function sbSchools(){ return SB_URL + "/rest/v1/schools"; }
+
+  async function searchSchools(q){
+    try{
+      var r = await fetch(sbSchools()+"?name=ilike."+encodeURIComponent("*"+q+"*")+"&select=id,name,suburb&limit=8", { headers:sbHeaders() });
+      if(!r.ok) return [];
+      return await r.json();
+    }catch(e){ return []; }
+  }
+  function renderSchoolResults(list, q){
+    var box = document.getElementById("schoolResults"); box.innerHTML = "";
+    if(!q){ return; }
+    if(!list.length){
+      box.innerHTML = '<p style="font-size:13px;color:var(--muted);text-align:center;margin:6px 2px;font-weight:600;">No schools match "'+esc(q)+'" yet.</p>';
+      return;
+    }
+    list.forEach(function(s){
+      var b = document.createElement("button");
+      b.className = "schoolrow";
+      b.innerHTML = '<span class="em">🏫</span><span class="mid"><span class="nm">'+esc(s.name)+'</span>'+
+                    (s.suburb?'<span class="sb">'+esc(s.suburb)+'</span>':'')+'</span><span class="go">›</span>';
+      b.onclick = function(){ pickSchool(s); };
+      box.appendChild(b);
+    });
+  }
+  window.pickSchool = function(s){
+    pendingSchool = { code:s.id, name:s.name, suburb:s.suburb||"" };
+    document.getElementById("sjName").textContent = "Join "+s.name;
+    document.getElementById("schoolCodeIn").value = "";
+    goStep("stepSchoolJoin");
+  };
+  window.joinSchool = async function(){
+    if(!pendingSchool){ goStep("stepSchool"); return; }
+    var code = document.getElementById("schoolCodeIn").value.trim().toUpperCase();
+    if(!code){ toast("Enter the school code"); return; }
+    if(code !== pendingSchool.code){ toast("That code doesn't match this school"); return; }
+    toast("Joined "+pendingSchool.name+"!");
+    goStep("stepCreate");
+  };
+  window.createSchool = async function(){
+    var name = document.getElementById("newSchoolName").value.trim();
+    var suburb = document.getElementById("newSchoolSuburb").value.trim();
+    if(!name){ toast("Give your school a name"); return; }
+    // guard against duplicate schools
+    var existing = await searchSchools(name.split(/\s+/)[0]);
+    var close = existing.filter(function(s){ return looksSame(s.name, name); });
+    if(close.length){
+      var w = document.getElementById("dupeWarn");
+      w.innerHTML = '<div class="dupe">⚠️ <b>'+esc(close[0].name)+'</b>'+(close[0].suburb?' ('+esc(close[0].suburb)+')':'')+
+        ' already exists. Joining it keeps your school together.<br><button class="btn ghost" style="margin-top:10px;" onclick="pickSchool('+JSON.stringify(close[0]).replace(/"/g,'&quot;')+')">Join that one instead</button></div>';
+      if(w.dataset.warned === "1"){ /* second press = proceed anyway */ } else { w.dataset.warned = "1"; return; }
+    }
+    var code = makeCode(name);
+    try{
+      var r = await fetch(sbSchools(), {
+        method:"POST",
+        headers:sbHeaders({ "Prefer":"return=minimal" }),
+        body:JSON.stringify([{ id:code, name:name, suburb:suburb, data:{}, rev:1, updated_by:clientId }])
+      });
+      if(!r.ok){ toast("Couldn't create the school, try again"); return; }
+    }catch(e){ toast("Couldn't reach the server"); return; }
+    pendingSchool = { code:code, name:name, suburb:suburb };
+    toast("School created!");
+    goStep("stepCreate");
+  };
+  function looksSame(a,b){
+    var norm = function(s){ return String(s).toLowerCase().replace(/\b(school|primary|intermediate|college|the|te|kura)\b/g,"").replace(/[^a-z0-9]/g,""); };
+    var x = norm(a), y = norm(b);
+    return x && y && (x===y || x.indexOf(y)>-1 || y.indexOf(x)>-1);
+  }
 
   function renderCrestPick(){
     var box=document.getElementById("crestPick"); box.innerHTML="";
@@ -537,15 +692,19 @@
     var code = makeCode(name);
     state = {
       onboarded:true, rev:0,
+      school: pendingSchool ? { code:pendingSchool.code, name:pendingSchool.name, suburb:pendingSchool.suburb } : null,
       me:{ code:code, name:name, crest:pickedCrest, kids:kids, points:{}, jobs:DEFAULT_JOBS.map(function(j){return Object.assign({},j);}),
            prize:"", allTime:0, week:weekKey() },
-      friends: [],          // list of other classes' codes
+      friends: [],          // extra classes added by code (outside your school)
       champions:[]
     };
     kids.forEach(function(k){ state.me.points[k.id]=0; });
     save();
     startSync();
     document.getElementById("revealCode").textContent = code;
+    var sbox = document.getElementById("revealSchoolBox");
+    if(state.school){ sbox.hidden = false; document.getElementById("revealSchoolCode").textContent = state.school.code; }
+    else { sbox.hidden = true; }
     goStep("stepCode");
   };
 
@@ -680,13 +839,95 @@
   };
 
   // ---------- league ----------
+  var leagueView = "school";       // "school" = classes at my school, "inter" = school vs school
+  var schoolMates = [];            // other classes at my school (live)
+  var schoolTotals = [];           // [{code,name,suburb,week,total,classes}]
+
+  window.setLeagueView = function(v){
+    leagueView = v;
+    document.getElementById("segSchool").classList.toggle("on", v==="school");
+    document.getElementById("segInter").classList.toggle("on", v==="inter");
+    renderLeague();
+    if(v==="inter") loadSchoolTotals();
+  };
+
+  // every class at my school (excluding mine), straight from the DB — no codes needed
+  async function loadSchoolMates(){
+    if(!state.school) { schoolMates = []; return; }
+    try{
+      var r = await fetch(sbBase()+"?school=eq."+encodeURIComponent(state.school.code)+"&select=id,data", { headers:sbHeaders() });
+      if(!r.ok) return;
+      var rows = await r.json();
+      schoolMates = rows.filter(function(x){ return x.id !== state.me.code; })
+                        .map(function(x){ return { code:x.id, name:(x.data&&x.data.name)||x.id, crest:(x.data&&x.data.crest)||"🍎",
+                                                   week:(x.data&&x.data.week)||0, total:(x.data&&x.data.total)||0 }; });
+    }catch(e){}
+  }
+  // combined totals per school, for the school-vs-school table
+  async function loadSchoolTotals(){
+    try{
+      var cr = await fetch(sbBase()+"?select=id,school,data", { headers:sbHeaders() });
+      var sr = await fetch(sbSchools()+"?select=id,name,suburb", { headers:sbHeaders() });
+      if(!cr.ok || !sr.ok) return;
+      var classes = await cr.json(), schools = await sr.json();
+      var agg = {};
+      classes.forEach(function(c){
+        if(!c.school) return;
+        if(!agg[c.school]) agg[c.school] = { week:0, total:0, classes:0 };
+        agg[c.school].week  += (c.data && c.data.week)  || 0;
+        agg[c.school].total += (c.data && c.data.total) || 0;
+        agg[c.school].classes += 1;
+      });
+      schoolTotals = schools.map(function(s){
+        var a = agg[s.id] || { week:0, total:0, classes:0 };
+        return { code:s.id, name:s.name, suburb:s.suburb||"", week:a.week, total:a.total, classes:a.classes };
+      }).filter(function(s){ return s.classes > 0; });
+      if(leagueView==="inter") renderLeague();
+    }catch(e){}
+  }
+
   function renderLeague(){
     var box=document.getElementById("leagueList"); box.innerHTML="";
+    var bar=document.getElementById("schoolBar"), lbl=document.getElementById("leagueLbl");
+
+    if(state.school){
+      bar.hidden = false;
+      document.getElementById("sbName").textContent = state.school.name;
+      document.getElementById("sbCode").textContent = state.school.code;
+    } else bar.hidden = true;
+
+    // ----- school vs school -----
+    if(leagueView === "inter"){
+      lbl.textContent = "Schools · this week";
+      if(!schoolTotals.length){
+        box.innerHTML = '<p style="font-size:13px;color:var(--muted);text-align:center;margin:18px 2px;font-weight:600;">Loading schools…</p>';
+        return;
+      }
+      var srows = schoolTotals.slice().sort(function(a,b){ return b.week-a.week; });
+      var smedals=["🥇","🥈","🥉"];
+      srows.forEach(function(r,i){
+        var isMine = state.school && r.code===state.school.code;
+        var el=document.createElement("div");
+        el.className="house"+(isMine?" mine":"")+(i===0?" first":"");
+        var rk = i<3 ? '<div class="rk medal">'+smedals[i]+'</div>' : '<div class="rk">'+(i+1)+'</div>';
+        el.innerHTML=rk+'<div class="em">🏫</div>'+
+          '<div class="mid"><div class="hn">'+esc(r.name)+(isMine?'<span class="youtag">YOURS</span>':'')+'</div>'+
+          '<div class="sub">'+r.classes+' class'+(r.classes===1?'':'es')+(r.suburb?' · '+esc(r.suburb):'')+'</div></div>'+
+          '<div class="tot">'+r.week+'</div>';
+        box.appendChild(el);
+      });
+      return;
+    }
+
+    // ----- classes at my school (+ any added by code) -----
+    lbl.textContent = state.school ? "Classes at your school" : "This week";
     var mine={ code:state.me.code, name:state.me.name, crest:state.me.crest, week:weekTotalOf(state.me), total:(state.me.allTime||0), mine:true };
-    var rows=[mine].concat((state.friends||[]).map(function(code){
+    var rows=[mine].concat(schoolMates).concat((state.friends||[]).map(function(code){
       var d = friendData[code] || {};
-      return { code:code, name:d.name||code, crest:d.crest||"🏫", week:d.week||0, total:d.total||0, mine:false, pending:!friendData[code] };
+      return { code:code, name:d.name||code, crest:d.crest||"🍎", week:d.week||0, total:d.total||0, mine:false, pending:!friendData[code] };
     }));
+    // de-duplicate (a schoolmate might also have been added by code)
+    var seen={}; rows = rows.filter(function(r){ if(seen[r.code]) return false; seen[r.code]=1; return true; });
     rows.sort(function(a,b){ return b.week-a.week; });
     var medals=["🥇","🥈","🥉"];
     rows.forEach(function(r,i){
@@ -825,6 +1066,19 @@
   // ---------- boot ----------
   function boot(){
     buildNav();
+    // school search box: debounced live search
+    var si = document.getElementById("schoolSearchIn");
+    if(si){
+      si.addEventListener("input", function(){
+        var q = si.value.trim();
+        if(searchTimer) clearTimeout(searchTimer);
+        if(q.length < 2){ renderSchoolResults([], ""); return; }
+        searchTimer = setTimeout(async function(){
+          var list = await searchSchools(q);
+          renderSchoolResults(list, q);
+        }, 250);
+      });
+    }
     state=load(); window.state=state;
     if(state && state.onboarded){
       // migrate older saves: friends used to be objects, now they are just codes
