@@ -39,6 +39,9 @@
   .brand h1 small{display:block;font-size:9px;letter-spacing:.28em;color:var(--muted);font-weight:700;margin-top:3px;}
   .gear{background:var(--card);border:2px solid var(--line);border-radius:12px;width:40px;height:40px;font-size:17px;cursor:pointer;color:var(--ink);}
   .gear:active{transform:scale(.94);}
+  .syncpill{font-size:10px;font-weight:800;letter-spacing:.04em;padding:4px 8px;border-radius:20px;background:rgba(33,30,28,.07);color:var(--muted);white-space:nowrap;}
+  .syncpill.live{background:#e4f2e9;color:var(--ok);}
+  .syncpill.err{background:#f6e7e2;color:#b0503a;}
 
   /* ---------- Family code pill ---------- */
   .codebar{display:flex;align-items:center;gap:10px;background:var(--card);border:2px solid var(--line);border-radius:16px;padding:11px 14px;margin-bottom:20px;box-shadow:var(--shadow);}
@@ -238,7 +241,7 @@
         <label>Class code</label>
         <input id="joinCodeIn" placeholder="ABCD-1234" style="text-transform:uppercase;letter-spacing:.1em;font-weight:800;">
       </div>
-      <p style="font-size:12px;color:var(--muted);text-align:center;margin:-6px 2px 16px;font-weight:600;">In this prototype, joining sets up a demo class so you can feel the flow. Live, it pulls your real class.</p>
+      <p style="font-size:12px;color:var(--muted);text-align:center;margin:-6px 2px 16px;font-weight:600;">This pulls up the real class and syncs it to this device, so any teacher or aide can add points from their own phone.</p>
       <button class="btn" onclick="joinFamily()">Join class →</button>
       <button class="btn ghost" onclick="goStep('stepWelcome')">Back</button>
     </div>
@@ -253,7 +256,10 @@
       <span class="crest" id="hdrCrest">🍎</span>
       <h1>Class Rivals<small id="hdrTag">CLASS VS CLASS</small></h1>
     </div>
-    <button class="gear" onclick="openSettings()">⚙️</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="syncpill" id="syncPill" hidden></span>
+      <button class="gear" onclick="openSettings()">⚙️</button>
+    </div>
   </header>
 
   <div class="codebar">
@@ -291,7 +297,7 @@
         <button onclick="addFriend()">Add</button>
       </div>
     </div>
-    <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:14px;font-weight:600;">Live, other classes' points update automatically. Here they're demo classes so the table feels real.</p>
+    <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:14px;font-weight:600;">Other classes' points update automatically every few seconds.</p>
   </div>
 </div>
 
@@ -346,13 +352,6 @@
     {id:"j7",label:"Tidy space",emoji:"🧹",pts:1},
     {id:"j8",label:"Great effort",emoji:"💪",pts:3}
   ];
-  // demo classes so the league feels alive in the prototype
-  var DEMO_FRIENDS = [
-    {code:"RM05-7788",name:"Room 5",crest:"🦊",week:31,total:412},
-    {code:"PATE-3310",name:"Ms Patel's Class",crest:"🦉",week:24,total:388},
-    {code:"RM09-9021",name:"Room 9",crest:"🚀",week:42,total:505}
-  ];
-
   var STORE_KEY = "classrivals_v1";
   var state = null;
   var selected = null;
@@ -361,8 +360,116 @@
   window.state = null;
 
   // ---------- storage ----------
-  function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} window.state = state; }
+  function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} window.state = state; schedulePush(); }
   function load(){ try{ var v = localStorage.getItem(STORE_KEY); return v ? JSON.parse(v) : null; }catch(e){ return null; } }
+
+  // ---------- cloud sync (Supabase REST, no libraries) ----------
+  var SB_URL = "https://xnpyrgcjhvlrkjyyykkg.supabase.co";
+  var SB_KEY = "sb_publishable_G6oXn0H6L37_JAvLKSqdZg_dKEIQflt";
+  var SB_TABLE = "classes";
+  var sync = { on:false, applying:false, pushTimer:null, pollTimer:null, status:"off" };
+  var friendData = {};   // code -> {name,crest,week,total}
+  var clientId = (function(){
+    try{ var c = localStorage.getItem("classrivals_client");
+      if(!c){ c = "c_"+Math.random().toString(36).slice(2); localStorage.setItem("classrivals_client", c); }
+      return c; }catch(e){ return "c_"+Math.random().toString(36).slice(2); }
+  })();
+  function sbHeaders(extra){
+    var h = { "apikey":SB_KEY, "Authorization":"Bearer "+SB_KEY, "Content-Type":"application/json" };
+    if(extra) for(var k in extra) h[k]=extra[k];
+    return h;
+  }
+  function sbBase(){ return SB_URL + "/rest/v1/" + SB_TABLE; }
+  function setSyncStatus(s){
+    sync.status = s;
+    var p = document.getElementById("syncPill");
+    if(!p) return;
+    p.hidden = false;
+    p.textContent = s==="ok" ? "● Live" : (s==="err" ? "● Offline" : "● Syncing");
+    p.className = "syncpill" + (s==="ok"?" live":(s==="err"?" err":""));
+  }
+  // the shape we publish for other classes to read
+  function myPayload(){
+    var me = state.me;
+    return { name:me.name, crest:me.crest, week:weekTotalOf(me), total:me.allTime||0,
+             kids:me.kids, points:me.points, jobs:me.jobs, prize:me.prize,
+             allTime:me.allTime||0, weekKey:me.week };
+  }
+  function schedulePush(){
+    if(!sync.on || sync.applying || !state || !state.me) return;
+    if(sync.pushTimer) clearTimeout(sync.pushTimer);
+    sync.pushTimer = setTimeout(pushMine, 700);
+  }
+  async function pushMine(){
+    if(!sync.on || !state || !state.me) return;
+    state.rev = (state.rev||0) + 1;
+    var body = [{ id:state.me.code, rev:state.rev, data:myPayload(), updated_by:clientId }];
+    try{
+      var r = await fetch(sbBase()+"?on_conflict=id", {
+        method:"POST",
+        headers:sbHeaders({ "Prefer":"resolution=merge-duplicates,return=minimal" }),
+        body:JSON.stringify(body)
+      });
+      setSyncStatus(r.ok ? "ok" : "err");
+    }catch(e){ setSyncStatus("err"); }
+  }
+  // look up any class by code — used by join + add friend
+  async function fetchClass(code){
+    try{
+      var r = await fetch(sbBase()+"?id=eq."+encodeURIComponent(code)+"&select=id,rev,data,updated_by", { headers:sbHeaders() });
+      if(!r.ok) return null;
+      var rows = await r.json();
+      return rows.length ? rows[0] : null;
+    }catch(e){ return null; }
+  }
+  // pull my own class (another device may have changed it) + all friend classes
+  async function pullAll(){
+    if(!sync.on || !state || !state.me) return;
+    var codes = [state.me.code].concat(state.friends || []);
+    var list = codes.map(function(c){ return '"'+c+'"'; }).join(",");
+    try{
+      var r = await fetch(sbBase()+"?id=in.("+encodeURIComponent(list)+")&select=id,rev,data,updated_by", { headers:sbHeaders() });
+      if(!r.ok){ setSyncStatus("err"); return; }
+      var rows = await r.json();
+      setSyncStatus("ok");
+      var changed = false;
+      rows.forEach(function(row){
+        if(row.id === state.me.code){
+          // adopt remote only if it is genuinely newer and from another device
+          if(row.rev > (state.rev||0) && row.updated_by !== clientId){ adoptRemote(row); changed = true; }
+        } else {
+          friendData[row.id] = row.data || {};
+        }
+      });
+      if(!changed) renderLeague();
+    }catch(e){ setSyncStatus("err"); }
+  }
+  function adoptRemote(row){
+    var d = row.data || {};
+    sync.applying = true;
+    state.rev = row.rev;
+    var me = state.me;
+    if(d.name) me.name = d.name;
+    if(d.crest) me.crest = d.crest;
+    if(d.kids && d.kids.length) me.kids = d.kids;
+    if(d.points) me.points = d.points;
+    if(d.jobs && d.jobs.length) me.jobs = d.jobs;
+    if(d.prize !== undefined) me.prize = d.prize;
+    if(d.allTime !== undefined) me.allTime = d.allTime;
+    if(d.weekKey) me.week = d.weekKey;
+    if(selected && !me.kids.some(function(k){return k.id===selected;})) selected = null;
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
+    renderAll();
+    sync.applying = false;
+  }
+  function startSync(){
+    sync.on = true;
+    setSyncStatus("...");
+    pushMine();
+    pullAll();
+    if(sync.pollTimer) clearInterval(sync.pollTimer);
+    sync.pollTimer = setInterval(pullAll, 5000);
+  }
 
   // ---------- helpers ----------
   function uid(p){ return (p||"x")+Math.random().toString(36).slice(2,7); }
@@ -429,36 +536,41 @@
     if(!kids.length){ toast("Add at least one student"); return; }
     var code = makeCode(name);
     state = {
-      onboarded:true,
+      onboarded:true, rev:0,
       me:{ code:code, name:name, crest:pickedCrest, kids:kids, points:{}, jobs:DEFAULT_JOBS.map(function(j){return Object.assign({},j);}),
            prize:"", allTime:0, week:weekKey() },
-      friends: DEMO_FRIENDS.map(function(f){ return Object.assign({},f); }),
+      friends: [],          // list of other classes' codes
       champions:[]
     };
     kids.forEach(function(k){ state.me.points[k.id]=0; });
     save();
+    startSync();
     document.getElementById("revealCode").textContent = code;
     goStep("stepCode");
   };
 
-  window.joinFamily = function(){
+  // join an EXISTING class by its code (real lookup)
+  window.joinFamily = async function(){
     var code = document.getElementById("joinCodeIn").value.trim().toUpperCase();
     if(!code){ toast("Enter a code"); return; }
-    // prototype: spin up a demo class under that code so the flow is explorable
-    var kids = [
-      {id:uid("k"),name:"Alex",initial:"A",colour:COLOURS[0]},
-      {id:uid("k"),name:"Sam",initial:"S",colour:COLOURS[1]},
-      {id:uid("k"),name:"Priya",initial:"P",colour:COLOURS[2]}
-    ];
+    toast("Looking up that class…");
+    var row = await fetchClass(code);
+    if(!row){ toast("No class found with that code"); return; }
+    var d = row.data || {};
     state = {
-      onboarded:true,
-      me:{ code:code, name:"Your Class", crest:"🍎", kids:kids, points:{}, jobs:DEFAULT_JOBS.map(function(j){return Object.assign({},j);}),
-           prize:"", allTime:0, week:weekKey() },
-      friends: DEMO_FRIENDS.map(function(f){ return Object.assign({},f); }),
+      onboarded:true, rev:row.rev||0,
+      me:{ code:code, name:d.name||"Your Class", crest:d.crest||"🍎",
+           kids:(d.kids&&d.kids.length)?d.kids:[], points:d.points||{},
+           jobs:(d.jobs&&d.jobs.length)?d.jobs:DEFAULT_JOBS.map(function(j){return Object.assign({},j);}),
+           prize:d.prize||"", allTime:d.allTime||0, week:d.weekKey||weekKey() },
+      friends: [],
       champions:[]
     };
-    kids.forEach(function(k){ state.me.points[k.id]=0; });
-    save(); finishOnb();
+    state.me.kids.forEach(function(k){ if(typeof state.me.points[k.id]!=="number") state.me.points[k.id]=0; });
+    save();
+    startSync();
+    finishOnb();
+    toast("Joined "+(d.name||"the class")+"!");
   };
 
   window.finishOnb = function(){
@@ -571,7 +683,10 @@
   function renderLeague(){
     var box=document.getElementById("leagueList"); box.innerHTML="";
     var mine={ code:state.me.code, name:state.me.name, crest:state.me.crest, week:weekTotalOf(state.me), total:(state.me.allTime||0), mine:true };
-    var rows=[mine].concat(state.friends.map(function(f){ return {code:f.code,name:f.name,crest:f.crest,week:f.week,total:f.total,mine:false}; }));
+    var rows=[mine].concat((state.friends||[]).map(function(code){
+      var d = friendData[code] || {};
+      return { code:code, name:d.name||code, crest:d.crest||"🏫", week:d.week||0, total:d.total||0, mine:false, pending:!friendData[code] };
+    }));
     rows.sort(function(a,b){ return b.week-a.week; });
     var medals=["🥇","🥈","🥉"];
     rows.forEach(function(r,i){
@@ -581,26 +696,27 @@
       el.innerHTML=rk+
         '<div class="em">'+r.crest+'</div>'+
         '<div class="mid"><div class="hn">'+esc(r.name)+(r.mine?'<span class="youtag">YOU</span>':'')+'</div>'+
-        '<div class="sub">'+r.total+' all-time · '+r.code+'</div></div>'+
+        '<div class="sub">'+(r.pending?"connecting…":(r.total+' all-time'))+' · '+r.code+'</div></div>'+
         '<div class="tot">'+r.week+'</div>';
       box.appendChild(el);
     });
   }
 
-  window.addFriend = function(){
+  // add another REAL class by its code
+  window.addFriend = async function(){
     var code=document.getElementById("friendCodeIn").value.trim().toUpperCase();
     if(!code){ toast("Enter their code"); return; }
     if(code===state.me.code){ toast("That's your own class 🙂"); return; }
-    if(state.friends.some(function(f){return f.code===code;})){ toast("Already on your league"); return; }
-    // prototype: create a demo class for that code
-    var names=["Room 3","Room 7","Mr Kelly's Class","Room 1","Ms Tran's Class","Room 6"];
-    var crest=CRESTS[Math.floor(Math.random()*CRESTS.length)];
-    state.friends.push({ code:code, name:names[Math.floor(Math.random()*names.length)], crest:crest,
-      week:Math.floor(3+Math.random()*18), total:Math.floor(40+Math.random()*260) });
+    if((state.friends||[]).indexOf(code) !== -1){ toast("Already on your league"); return; }
+    toast("Looking up that class…");
+    var row = await fetchClass(code);
+    if(!row){ toast("No class found with that code"); return; }
+    friendData[code] = row.data || {};
+    state.friends = (state.friends||[]).concat([code]);
     save();
     document.getElementById("friendCodeIn").value="";
     renderLeague();
-    toast("Class added to your league!");
+    toast((row.data && row.data.name ? row.data.name : "Class")+" added to your league!");
   };
 
   // ---------- navigation ----------
@@ -711,8 +827,15 @@
     buildNav();
     state=load(); window.state=state;
     if(state && state.onboarded){
+      // migrate older saves: friends used to be objects, now they are just codes
+      if(state.friends && state.friends.length && typeof state.friends[0] === "object"){
+        state.friends = state.friends.map(function(f){ return f.code; }).filter(Boolean);
+      }
+      if(!state.friends) state.friends = [];
+      if(state.rev === undefined) state.rev = 0;
       document.getElementById("app").style.display="block";
       renderAll();
+      startSync();
     } else {
       document.getElementById("onb").classList.add("show");
     }
