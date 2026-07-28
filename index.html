@@ -653,8 +653,12 @@
   function sbSchools(){ return SB_URL + "/rest/v1/schools"; }
 
   async function searchSchools(q){
+    // match on name OR suburb, so "Pt Chev" finds "Point Chevalier Primary School"
+    var like = "*"+q+"*";
+    var qs = "?or=(name.ilike." + encodeURIComponent(like) + ",suburb.ilike." + encodeURIComponent(like) + ")" +
+             "&select=id,name,suburb&limit=8";
     try{
-      var r = await fetch(sbSchools()+"?name=ilike."+encodeURIComponent("*"+q+"*")+"&select=id,name,suburb&limit=8", { headers:sbHeaders() });
+      var r = await fetch(sbSchools()+qs, { headers:sbHeaders() });
       if(!r.ok) return [];
       return await r.json();
     }catch(e){ return []; }
@@ -718,9 +722,16 @@
     goStep("stepCreate");
   };
   function looksSame(a,b){
-    var norm = function(s){ return String(s).toLowerCase().replace(/\b(school|primary|intermediate|college|the|te|kura)\b/g,"").replace(/[^a-z0-9]/g,""); };
+    var strip = function(s){ return String(s).toLowerCase()
+      .replace(/\b(school|primary|intermediate|college|area|full|the|te|kura|of|and)\b/g," "); };
+    var norm = function(s){ return strip(s).replace(/[^a-z0-9]/g,""); };
     var x = norm(a), y = norm(b);
-    return x && y && (x===y || x.indexOf(y)>-1 || y.indexOf(x)>-1);
+    if(x && y && (x===y || x.indexOf(y)>-1 || y.indexOf(x)>-1)) return true;
+    // catch abbreviations like "Pt Chevalier" vs "Point Chevalier": share a distinctive word
+    var words = function(s){ return strip(s).split(/[^a-z0-9]+/).filter(function(w){ return w.length>=5; }); };
+    var wa = words(a), wb = words(b);
+    for(var i=0;i<wa.length;i++){ if(wb.indexOf(wa[i]) !== -1) return true; }
+    return false;
   }
 
   // crests already used by other classes at this school — one crest per class
