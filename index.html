@@ -103,6 +103,12 @@
   .codebox .cp:active{transform:scale(.96);}
   /* fixed 6 columns so the 36 crests always sit 6 to a row on any screen */
   .crestgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;}
+  .yeargrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+  .yearchip{background:#fff;border:2px solid var(--line);border-radius:12px;padding:11px 4px;font-size:12px;font-weight:800;color:var(--ink);cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .yearchip.on{background:var(--indigo);border-color:var(--indigo);color:#fff;}
+  .yearchip:active{transform:scale(.96);}
+  .yearfilter{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+  .yearchip.sm{padding:7px 12px;font-size:11px;border-radius:20px;}
   @keyframes pop{0%{transform:scale(1);}40%{transform:scale(1.35);}100%{transform:scale(1);}}
 
   /* ---------- Prize ---------- */
@@ -297,7 +303,11 @@
       <div class="hero"><div class="big">🍎</div><h2>Name your class</h2><p id="createSub">This is what other classes will see on the league table.</p></div>
       <div class="fld">
         <label>Class name</label>
-        <input id="famNameIn" placeholder="e.g. Room 12 / Ms Shanahan's Class" maxlength="24">
+        <input id="famNameIn" placeholder="e.g. Room 12" maxlength="24">
+      </div>
+      <div class="fld">
+        <label>Year level</label>
+        <div id="yearPick" class="yeargrid"></div>
       </div>
       <div class="fld">
         <label>Pick your crest</label>
@@ -394,6 +404,7 @@
       </div>
       <button class="code" onclick="copyCode(state.school && state.school.code)">🔗 <b id="sbCode">—</b></button>
     </div>
+    <div id="yearFilter" class="yearfilter" hidden></div>
     <div class="seclbl"><span class="txt" id="leagueLbl">This week</span><span class="rule"></span>
       <button class="filtbtn" id="filtBtn" onclick="openClassFilter()" hidden>⚙️ Choose classes</button></div>
     <div id="leagueList"></div>
@@ -424,6 +435,8 @@
         <button id="setCrest" onclick="cycleCrest()" style="font-size:24px;background:#fff;border:2px solid var(--line);border-radius:10px;width:46px;height:46px;cursor:pointer;">🏆</button>
         <input id="setName" style="flex:1;border:2px solid var(--line);border-radius:10px;padding:11px;font-size:15px;font-family:inherit;font-weight:700;color:var(--ink);background:#fff;">
       </div>
+      <div class="lab" style="margin-top:14px;">Year level</div>
+      <div id="setYear" class="yeargrid"></div>
     </div>
 
     <div class="setrow">
@@ -479,6 +492,7 @@
     "🚀","⚡","🌟","🌈","🔥","🍀","📚","🎨","🎵","⚽",
     "🏀","🌸","🦕","🐲","🦅","🏫"
   ];   // 36 = exactly 6 rows of 6 in the picker grid
+  var YEARS = ["NE","Year 1","Year 2","Year 3","Year 4","Year 5","Year 6","Year 7","Year 8","Mixed"];
   var COLOURS = ["#4C4B9E","#E0A422","#C4553B","#2f7d4f","#8E4585","#2b8a9e","#B5651D","#5B6C4F"];
   var DEFAULT_JOBS = [
     {id:"j1",label:"Book bag in basket",emoji:"🎒",pts:1},
@@ -531,7 +545,7 @@
   // the shape we publish for other classes to read
   function myPayload(){
     var me = state.me;
-    return { name:me.name, crest:me.crest, week:weekTotalOf(me), total:me.allTime||0,
+    return { name:me.name, crest:me.crest, year:me.year||"", week:weekTotalOf(me), total:me.allTime||0,
              kids:me.kids, points:me.points, jobs:me.jobs, prize:me.prize,
              allTime:me.allTime||0, weekKey:me.week };
   }
@@ -593,6 +607,7 @@
     var me = state.me;
     if(d.name) me.name = d.name;
     if(d.crest) me.crest = d.crest;
+    if(d.year !== undefined) me.year = d.year;
     if(d.kids && d.kids.length) me.kids = d.kids;
     if(d.points) me.points = d.points;
     if(d.jobs && d.jobs.length) me.jobs = d.jobs;
@@ -638,6 +653,7 @@
     if(id==="stepCreate"){
       if(!buildKids.length){ addKidRow(); addKidRow(); }
       renderCrestPick();
+      renderYearPick();
       // then refresh once we know which crests this school has already used
       loadTakenCrests(pendingSchool ? pendingSchool.code : null, null).then(renderCrestPick);
       var sub = document.getElementById("createSub");
@@ -748,6 +764,20 @@
                         .filter(Boolean);
     }catch(e){}
   }
+  var pickedYear = "";
+  function renderYearPick(){
+    var box=document.getElementById("yearPick"); if(!box) return;
+    box.innerHTML="";
+    YEARS.forEach(function(y){
+      var b=document.createElement("button");
+      b.type="button";
+      b.className="yearchip"+(y===pickedYear?" on":"");
+      b.textContent=y;
+      b.onclick=function(){ pickedYear = (pickedYear===y ? "" : y); renderYearPick(); };
+      box.appendChild(b);
+    });
+  }
+
   function firstFreeCrest(){
     for(var i=0;i<CRESTS.length;i++){ if(takenCrests.indexOf(CRESTS[i])===-1) return CRESTS[i]; }
     return CRESTS[0];
@@ -802,7 +832,7 @@
     state = {
       onboarded:true, rev:0,
       school: pendingSchool ? { code:pendingSchool.code, name:pendingSchool.name, suburb:pendingSchool.suburb } : null,
-      me:{ code:code, name:name, crest:pickedCrest, kids:kids, points:{}, jobs:DEFAULT_JOBS.map(function(j){return Object.assign({},j);}),
+      me:{ code:code, name:name, crest:pickedCrest, year:pickedYear, kids:kids, points:{}, jobs:DEFAULT_JOBS.map(function(j){return Object.assign({},j);}),
            prize:"", allTime:0, week:weekKey() },
       friends: [],          // extra classes added by code (outside your school)
       champions:[]
@@ -1040,6 +1070,7 @@
       var rows = await r.json();
       schoolMates = rows.filter(function(x){ return x.id !== state.me.code; })
                         .map(function(x){ return { code:x.id, name:(x.data&&x.data.name)||x.id, crest:(x.data&&x.data.crest)||"🍎",
+                                                   year:(x.data&&x.data.year)||"",
                                                    week:(x.data&&x.data.week)||0, total:(x.data&&x.data.total)||0 }; });
     }catch(e){}
   }
@@ -1066,6 +1097,31 @@
     }catch(e){}
   }
 
+  // year-level filter for the school league, built from whichever years are actually present
+  var yearFilter = "";
+  window.setYearFilter = function(y){ yearFilter = (yearFilter===y ? "" : y); renderLeague(); };
+  function renderYearFilter(rows){
+    var box = document.getElementById("yearFilter"); if(!box) return;
+    var present = [];
+    rows.forEach(function(r){ if(r.year && present.indexOf(r.year)===-1) present.push(r.year); });
+    present.sort(function(a,b){ return YEARS.indexOf(a) - YEARS.indexOf(b); });
+    if(present.length < 2){ box.hidden = true; box.innerHTML=""; return; }   // pointless with 0-1 years
+    box.hidden = false;
+    box.innerHTML = "";
+    var all = document.createElement("button");
+    all.className = "yearchip sm" + (yearFilter===""?" on":"");
+    all.textContent = "All years";
+    all.onclick = function(){ setYearFilter(""); };
+    box.appendChild(all);
+    present.forEach(function(y){
+      var b=document.createElement("button");
+      b.className="yearchip sm"+(yearFilter===y?" on":"");
+      b.textContent=y;
+      b.onclick=function(){ setYearFilter(y); };
+      box.appendChild(b);
+    });
+  }
+
   function renderLeague(){
     var box=document.getElementById("leagueList"); box.innerHTML="";
     var bar=document.getElementById("schoolBar"), lbl=document.getElementById("leagueLbl");
@@ -1080,6 +1136,7 @@
     if(leagueView === "inter"){
       lbl.textContent = "Schools · this week";
       var fbi = document.getElementById("filtBtn"); if(fbi) fbi.hidden = true;
+      var yfi = document.getElementById("yearFilter"); if(yfi) yfi.hidden = true;
       if(!schoolTotals.length){
         box.innerHTML = '<p style="font-size:13px;color:var(--muted);text-align:center;margin:18px 2px;font-weight:600;">Loading schools…</p>';
         return;
@@ -1102,14 +1159,16 @@
 
     // ----- classes at my school (+ any added by code) -----
     lbl.textContent = state.school ? "Classes at your school" : "This week";
-    var mine={ code:state.me.code, name:state.me.name, crest:state.me.crest, week:weekTotalOf(state.me), total:(state.me.allTime||0), mine:true };
+    var mine={ code:state.me.code, name:state.me.name, crest:state.me.crest, year:state.me.year||"", week:weekTotalOf(state.me), total:(state.me.allTime||0), mine:true };
     var rows=[mine].concat(schoolMates).concat((state.friends||[]).map(function(code){
       var d = friendData[code] || {};
-      return { code:code, name:d.name||code, crest:d.crest||"🍎", week:d.week||0, total:d.total||0, mine:false, pending:!friendData[code] };
+      return { code:code, name:d.name||code, crest:d.crest||"🍎", year:d.year||"", week:d.week||0, total:d.total||0, mine:false, pending:!friendData[code] };
     }));
     // de-duplicate (a schoolmate might also have been added by code), then drop hidden ones
     var seen={}; rows = rows.filter(function(r){ if(seen[r.code]) return false; seen[r.code]=1; return true; });
     rows = rows.filter(function(r){ return r.mine || !isHidden(r.code); });
+    renderYearFilter(rows);
+    if(yearFilter) rows = rows.filter(function(r){ return r.mine || r.year === yearFilter; });
     // the filter button only matters once there is someone to filter
     var fb = document.getElementById("filtBtn");
     if(fb) fb.hidden = (schoolMates.length + (state.friends||[]).length) === 0;
@@ -1122,7 +1181,7 @@
       el.innerHTML=rk+
         '<div class="em">'+r.crest+'</div>'+
         '<div class="mid"><div class="hn">'+esc(r.name)+(r.mine?'<span class="youtag">YOU</span>':'')+'</div>'+
-        '<div class="sub">'+(r.pending?"connecting…":(r.total+' all-time'))+' · '+r.code+'</div></div>'+
+        '<div class="sub">'+(r.year?esc(r.year)+' · ':'')+(r.pending?"connecting…":(r.total+' all-time'))+'</div></div>'+
         '<div class="tot">'+r.week+'</div>';
       box.appendChild(el);
     });
@@ -1157,6 +1216,19 @@
 
   // ---------- settings ----------
   var setCrestVal="🏆";
+  var setYearVal="";
+  function renderSetYear(){
+    var box=document.getElementById("setYear"); if(!box) return;
+    box.innerHTML="";
+    YEARS.forEach(function(y){
+      var b=document.createElement("button");
+      b.type="button";
+      b.className="yearchip"+(y===setYearVal?" on":"");
+      b.textContent=y;
+      b.onclick=function(){ setYearVal = (setYearVal===y ? "" : y); renderSetYear(); };
+      box.appendChild(b);
+    });
+  }
   // let an EXISTING class join or create a school (onboarding isn't the only way in)
   var schoolOnlyMode = false;
   window.openSchoolPicker = function(){
@@ -1222,6 +1294,8 @@
     var me=state.me;
     renderSetSchool();
     loadTakenCrests(state.school ? state.school.code : null, me.code);
+    setYearVal = me.year || "";
+    renderSetYear();
     setCrestVal=me.crest;
     document.getElementById("setCrest").textContent=me.crest;
     document.getElementById("setName").value=me.name;
@@ -1280,6 +1354,7 @@
     var name=document.getElementById("setName").value.trim();
     if(name) state.me.name=name;
     state.me.crest=setCrestVal;
+    state.me.year=setYearVal;
     var kids=setKidsScratch.filter(function(k){return k.name.trim();}).map(function(k){ return {id:k.id,name:k.name.trim(),initial:initialOf(k.name),colour:k.colour}; });
     if(kids.length) state.me.kids=kids;
     // reconcile points map
