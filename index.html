@@ -79,6 +79,16 @@
   .lbrow .av{width:32px;height:32px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;background:var(--c,#4C4B9E);}
   .lbrow .nm{flex:1;min-width:0;font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .lbrow .pt{font-size:20px;font-weight:800;color:var(--c,#4C4B9E);font-variant-numeric:tabular-nums;flex:none;}
+  .filtbtn{background:none;border:none;font-size:10px;font-weight:800;letter-spacing:.04em;color:var(--indigo);background:var(--indigo-tint);padding:4px 9px;border-radius:20px;cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .filtbtn:active{transform:scale(.96);}
+  .filtrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);border:2px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer;font-family:inherit;opacity:.5;}
+  .filtrow.on{opacity:1;border-color:var(--indigo);}
+  .filtrow .em{font-size:22px;flex:none;}
+  .filtrow .mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .filtrow .nm{font-size:14px;font-weight:800;color:var(--ink);}
+  .filtrow .sb{font-size:11px;color:var(--muted);font-weight:600;}
+  .filtrow .tog{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;}
+  .filtrow.on .tog{background:var(--indigo);border-color:var(--indigo);}
   @keyframes pop{0%{transform:scale(1);}40%{transform:scale(1.35);}100%{transform:scale(1);}}
 
   /* ---------- Prize ---------- */
@@ -370,10 +380,11 @@
       </div>
       <button class="code" onclick="copyCode(state.school && state.school.code)">🔗 <b id="sbCode">—</b></button>
     </div>
-    <div class="seclbl"><span class="txt" id="leagueLbl">This week</span><span class="rule"></span></div>
+    <div class="seclbl"><span class="txt" id="leagueLbl">This week</span><span class="rule"></span>
+      <button class="filtbtn" id="filtBtn" onclick="openClassFilter()" hidden>⚙️ Choose classes</button></div>
     <div id="leagueList"></div>
     <div class="addfriend">
-      <p>➕ Add another class by its code to see them on the league (same school or across schools).</p>
+      <p>Classes at your school appear here automatically. Use a code only to add a class from <b>another</b> school.</p>
       <div class="addrow">
         <input id="friendCodeIn" placeholder="CLASS-CODE" maxlength="12">
         <button onclick="addFriend()">Add</button>
@@ -417,6 +428,18 @@
     <button class="btn ghost" onclick="newWeek()" style="margin-top:10px;">🏁 End week & crown star student</button>
     <button class="btn danger" onclick="closeSettings()" style="margin-top:10px;">Close</button>
     <p style="text-align:center;font-size:11px;color:var(--muted);margin-top:16px;font-weight:600;">Class Rivals · prototype</p>
+  </div>
+</div>
+
+<!-- ============ CHOOSE CLASSES SHEET ============ -->
+<div class="sheet" id="filtSheet">
+  <div class="panel">
+    <h3>⚙️ Choose classes</h3>
+    <p style="font-size:13px;color:var(--muted);font-weight:600;margin:-8px 0 16px;line-height:1.45;">
+      Every class at your school shows up automatically. Switch off any you don't want on your league, like the senior school.
+    </p>
+    <div id="filtList"></div>
+    <button class="btn" onclick="closeClassFilter()" style="margin-top:16px;">Done</button>
   </div>
 </div>
 
@@ -903,6 +926,44 @@
   var schoolMates = [];            // other classes at my school (live)
   var schoolTotals = [];           // [{code,name,suburb,week,total,classes}]
 
+  // hide classes you don't want on your league (juniors only, etc)
+  function isHidden(code){ return (state.hidden||[]).indexOf(code) !== -1; }
+  window.openClassFilter = function(){
+    renderClassFilter();
+    document.getElementById("filtSheet").classList.add("show");
+  };
+  window.closeClassFilter = function(){ document.getElementById("filtSheet").classList.remove("show"); };
+  window.toggleClassVisible = function(code){
+    if(!state.hidden) state.hidden = [];
+    var i = state.hidden.indexOf(code);
+    if(i === -1) state.hidden.push(code); else state.hidden.splice(i,1);
+    save();
+    renderClassFilter();
+    renderLeague();
+  };
+  function renderClassFilter(){
+    var box = document.getElementById("filtList"); box.innerHTML = "";
+    var all = schoolMates.concat((state.friends||[]).map(function(c){
+      var d = friendData[c] || {}; return { code:c, name:d.name||c, crest:d.crest||"🍎", added:true };
+    }));
+    var seen={}; all = all.filter(function(r){ if(seen[r.code]) return false; seen[r.code]=1; return true; });
+    if(!all.length){
+      box.innerHTML = '<p style="font-size:13px;color:var(--muted);text-align:center;font-weight:600;margin:10px 2px;">No other classes yet. They\'ll appear here as teachers at your school join.</p>';
+      return;
+    }
+    all.forEach(function(r){
+      var on = !isHidden(r.code);
+      var row = document.createElement("button");
+      row.className = "filtrow" + (on?" on":"");
+      row.innerHTML = '<span class="em">'+r.crest+'</span>'+
+        '<span class="mid"><span class="nm">'+esc(r.name)+'</span>'+
+        '<span class="sb">'+r.code+(r.added?' · added by code':'')+'</span></span>'+
+        '<span class="tog">'+(on?"✓":"")+'</span>';
+      row.onclick = function(){ toggleClassVisible(r.code); };
+      box.appendChild(row);
+    });
+  }
+
   window.setLeagueView = function(v){
     leagueView = v;
     document.getElementById("segSchool").classList.toggle("on", v==="school");
@@ -959,6 +1020,7 @@
     // ----- school vs school -----
     if(leagueView === "inter"){
       lbl.textContent = "Schools · this week";
+      var fbi = document.getElementById("filtBtn"); if(fbi) fbi.hidden = true;
       if(!schoolTotals.length){
         box.innerHTML = '<p style="font-size:13px;color:var(--muted);text-align:center;margin:18px 2px;font-weight:600;">Loading schools…</p>';
         return;
@@ -986,8 +1048,12 @@
       var d = friendData[code] || {};
       return { code:code, name:d.name||code, crest:d.crest||"🍎", week:d.week||0, total:d.total||0, mine:false, pending:!friendData[code] };
     }));
-    // de-duplicate (a schoolmate might also have been added by code)
+    // de-duplicate (a schoolmate might also have been added by code), then drop hidden ones
     var seen={}; rows = rows.filter(function(r){ if(seen[r.code]) return false; seen[r.code]=1; return true; });
+    rows = rows.filter(function(r){ return r.mine || !isHidden(r.code); });
+    // the filter button only matters once there is someone to filter
+    var fb = document.getElementById("filtBtn");
+    if(fb) fb.hidden = (schoolMates.length + (state.friends||[]).length) === 0;
     rows.sort(function(a,b){ return b.week-a.week; });
     var medals=["🥇","🥈","🥉"];
     rows.forEach(function(r,i){
@@ -1183,6 +1249,7 @@
         state.friends = state.friends.map(function(f){ return f.code; }).filter(Boolean);
       }
       if(!state.friends) state.friends = [];
+      if(!state.hidden) state.hidden = [];
       if(state.rev === undefined) state.rev = 0;
       // never leave a class with nothing to award
       if(!state.me.jobs || !state.me.jobs.length) state.me.jobs = DEFAULT_JOBS.map(function(j){ return Object.assign({},j); });
