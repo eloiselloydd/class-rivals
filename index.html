@@ -612,8 +612,10 @@
     saveSession(s);
     history.replaceState(null, "", location.pathname + location.search);
     await ensureProfile();
+    justSignedIn = true;
     return true;
   }
+  var justSignedIn = false;
   // make sure there's a profile row for this user (RLS only lets you write your own)
   async function ensureProfile(){
     if(!session || !session.user) return;
@@ -625,6 +627,44 @@
       });
     }catch(e){}
   }
+  // Link the class (and school) on this device to the signed-in teacher.
+  // Creates the membership rows the new access rules are built on, and stamps
+  // the class with an owner if nobody has claimed it yet.
+  var claimState = { checked:false, owned:false, ownedByMe:false };
+  async function claimClassForUser(){
+    if(!session || !session.user || !state || !state.me) return;
+    var uid = session.user.id;
+    try{
+      var rows = [{ user_id:uid, scope_type:"class", scope_id:state.me.code, role:"teacher" }];
+      if(state.school) rows.push({ user_id:uid, scope_type:"school", scope_id:state.school.code, role:"teacher" });
+      await fetch(SB_URL + "/rest/v1/memberships?on_conflict=user_id,scope_type,scope_id", {
+        method:"POST",
+        headers:Object.assign(authHeaders(), { "Prefer":"resolution=merge-duplicates,return=minimal" }),
+        body:JSON.stringify(rows)
+      });
+    }catch(e){}
+    // only take ownership if the class is currently unowned — never steal someone else's
+    try{
+      var r = await fetch(sbBase()+"?id=eq."+encodeURIComponent(state.me.code)+"&select=owner_id", { headers:authHeaders() });
+      if(r.ok){
+        var got = await r.json();
+        var owner = got.length ? got[0].owner_id : null;
+        claimState.checked = true;
+        claimState.owned = !!owner;
+        claimState.ownedByMe = owner === uid;
+        if(!owner){
+          await fetch(sbBase()+"?id=eq."+encodeURIComponent(state.me.code), {
+            method:"PATCH",
+            headers:Object.assign(authHeaders(), { "Prefer":"return=minimal" }),
+            body:JSON.stringify({ owner_id: uid })
+          });
+          claimState.owned = true; claimState.ownedByMe = true;
+        }
+      }
+    }catch(e){}
+    renderAuthUI();
+  }
+
   window.signOut = function(){
     saveSession(null);
     renderAuthUI();
@@ -633,10 +673,19 @@
   function renderAuthUI(){
     var box = document.getElementById("authBox"); if(!box) return;
     if(session && session.user){
+      var claimLine = "";
+      if(claimState.checked){
+        claimLine = claimState.ownedByMe
+          ? '<div class="dupe" style="background:#e4f2e9;border-color:rgba(47,125,79,.3);color:#2f7d4f;margin:10px 0 0;">🔒 This class is linked to your account.</div>'
+          : (claimState.owned
+              ? '<div class="dupe" style="margin:10px 0 0;">⚠️ Another teacher already owns this class. You can still award points.</div>'
+              : "");
+      }
       box.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">'+
         '<span style="font-size:20px;">✅</span>'+
         '<div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:13px;">Signed in</div>'+
         '<div style="font-size:11px;color:var(--muted);font-weight:600;word-break:break-all;">'+esc(session.user.email)+'</div></div></div>'+
+        claimLine +
         '<button class="addmini" style="margin-top:10px;" onclick="signOut()">Sign out</button>';
     } else {
       box.innerHTML = '<p style="font-size:13px;color:var(--muted);font-weight:600;margin:0 0 10px;line-height:1.45;">'+
@@ -981,6 +1030,7 @@
     kids.forEach(function(k){ state.me.points[k.id]=0; });
     save();
     startSync();
+    if(session && session.user) claimClassForUser();
     document.getElementById("revealCode").textContent = code;
     var sbox = document.getElementById("revealSchoolBox");
     if(state.school){ sbox.hidden = false; document.getElementById("revealSchoolCode").textContent = state.school.code; }
@@ -1590,6 +1640,11 @@
       document.getElementById("app").style.display="block";
       renderAll();
       startSync();
+      // if signed in, make sure this class is linked to the account
+      if(session && session.user){
+        claimClassForUser();
+        if(justSignedIn) toast("Signed in — this class is linked to you");
+      }
     } else {
       document.getElementById("onb").classList.add("show");
     }
