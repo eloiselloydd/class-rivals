@@ -33,6 +33,8 @@
   }
   /* form controls don't inherit text-transform, so name them explicitly */
   button, input, input::placeholder, textarea, select{ text-transform:uppercase; }
+  /* behaviour labels stay sentence case: in caps they wrap and the tiles get tall */
+  #chores .tile .cn, #setJobs input{ text-transform:none; }
   .wrap{max-width:560px;margin:0 auto;}
   button{font-family:inherit;}
 
@@ -94,6 +96,11 @@
   .filtrow .sb{font-size:11px;color:var(--muted);font-weight:600;}
   .filtrow .tog{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;}
   .filtrow.on .tog{background:var(--indigo);border-color:var(--indigo);}
+  .codebox{background:var(--indigo-tint);border-radius:12px;padding:12px 14px;text-align:center;}
+  .codebox .l{font-size:9px;letter-spacing:.18em;font-weight:800;color:var(--indigo);opacity:.75;}
+  .codebox .c{font-size:24px;font-weight:800;letter-spacing:.12em;color:var(--indigo);margin:4px 0 8px;}
+  .codebox .cp{background:var(--indigo);color:#fff;border:none;border-radius:9px;padding:8px 16px;font-size:11px;font-weight:800;letter-spacing:.06em;cursor:pointer;font-family:inherit;}
+  .codebox .cp:active{transform:scale(.96);}
   @keyframes pop{0%{transform:scale(1);}40%{transform:scale(1.35);}100%{transform:scale(1);}}
 
   /* ---------- Prize ---------- */
@@ -464,7 +471,12 @@
   "use strict";
 
   // ---------- constants ----------
-  var CRESTS = ["🍎","🏫","🦉","🦁","🐻","🦊","🐬","🚀","⚡","🌟","📚","🍀"];
+  var CRESTS = [
+    "🐧","🍎","🦉","🦁","🐻","🦊","🐬","🐢","🐨","🐼",
+    "🦜","🐙","🦖","🦄","🐝","🦋","🐳","🦩","🐸","🦔",
+    "🚀","⚡","🌟","🌈","🔥","🍀","📚","🎨","🎵","⚽",
+    "🏀","🌸","🦕","🐲","🏫"
+  ];
   var COLOURS = ["#4C4B9E","#E0A422","#C4553B","#2f7d4f","#8E4585","#2b8a9e","#B5651D","#5B6C4F"];
   var DEFAULT_JOBS = [
     {id:"j1",label:"Book bag in basket",emoji:"🎒",pts:1},
@@ -624,6 +636,8 @@
     if(id==="stepCreate"){
       if(!buildKids.length){ addKidRow(); addKidRow(); }
       renderCrestPick();
+      // then refresh once we know which crests this school has already used
+      loadTakenCrests(pendingSchool ? pendingSchool.code : null, null).then(renderCrestPick);
       var sub = document.getElementById("createSub");
       if(sub && pendingSchool) sub.innerHTML = "Adding a class at <b>"+esc(pendingSchool.name)+"</b>.";
     }
@@ -707,13 +721,40 @@
     return x && y && (x===y || x.indexOf(y)>-1 || y.indexOf(x)>-1);
   }
 
+  // crests already used by other classes at this school — one crest per class
+  var takenCrests = [];
+  async function loadTakenCrests(schoolCode, myCode){
+    takenCrests = [];
+    if(!schoolCode) return;
+    try{
+      var r = await fetch(sbBase()+"?school=eq."+encodeURIComponent(schoolCode)+"&select=id,data", { headers:sbHeaders() });
+      if(!r.ok) return;
+      var rows = await r.json();
+      takenCrests = rows.filter(function(x){ return x.id !== myCode; })
+                        .map(function(x){ return x.data && x.data.crest; })
+                        .filter(Boolean);
+    }catch(e){}
+  }
+  function firstFreeCrest(){
+    for(var i=0;i<CRESTS.length;i++){ if(takenCrests.indexOf(CRESTS[i])===-1) return CRESTS[i]; }
+    return CRESTS[0];
+  }
   function renderCrestPick(){
-    var box=document.getElementById("crestPick"); box.innerHTML="";
+    var box=document.getElementById("crestPick"); if(!box) return;
+    box.innerHTML="";
+    if(takenCrests.indexOf(pickedCrest) !== -1) pickedCrest = firstFreeCrest();
     CRESTS.forEach(function(c){
+      var taken = takenCrests.indexOf(c) !== -1;
       var b=document.createElement("button");
       b.textContent=c;
-      b.style.cssText="font-size:24px;width:44px;height:44px;border-radius:12px;cursor:pointer;background:#fff;border:2px solid "+(c===pickedCrest?"var(--indigo)":"var(--line)");
-      b.onclick=function(){ pickedCrest=c; renderCrestPick(); };
+      b.title = taken ? "Already used by another class" : "";
+      b.style.cssText="position:relative;font-size:24px;width:44px;height:44px;border-radius:12px;background:#fff;border:2px solid "+
+        (c===pickedCrest?"var(--indigo)":"var(--line)")+";"+
+        (taken ? "opacity:.28;cursor:not-allowed;filter:grayscale(1);" : "cursor:pointer;");
+      b.onclick=function(){
+        if(taken){ toast("Another class already has that crest"); return; }
+        pickedCrest=c; renderCrestPick();
+      };
       box.appendChild(b);
     });
   }
@@ -1125,14 +1166,39 @@
     loadSchoolMates().then(renderLeague);
     toast("Joined "+pendingSchool.name+"!");
   }
+  // share-ready invite for the staffroom chat
+  window.inviteTeachers = function(){
+    if(!state.school) return;
+    var msg = "Join our Class Rivals league at " + state.school.name + "!\n\n" +
+              "1. Go to classrivals.com\n" +
+              "2. Tap Get started, then search for our school\n" +
+              "3. Enter our school code: " + state.school.code + "\n\n" +
+              "Then set up your class and we can compare points.";
+    if(navigator.share){
+      navigator.share({ title:"Class Rivals", text:msg }).catch(function(){ copyInvite(msg); });
+    } else copyInvite(msg);
+  };
+  function copyInvite(msg){
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(msg).then(
+        function(){ toast("Invite copied — paste it to your staff chat"); },
+        function(){ toast("Code: "+state.school.code); });
+    } else toast("Code: "+state.school.code);
+  }
+
   function renderSetSchool(){
     var box = document.getElementById("setSchool"); if(!box) return;
     if(state.school){
-      box.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">'+
-        '<span style="font-size:22px;">🏫</span>'+
-        '<div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:14px;">'+esc(state.school.name)+'</div>'+
-        '<div style="font-size:11px;color:var(--muted);font-weight:600;">Code '+esc(state.school.code)+'</div></div></div>'+
-        '<button class="addmini" style="margin-top:10px;" onclick="openSchoolPicker()">Change school</button>';
+      box.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'+
+          '<span style="font-size:22px;">🏫</span>'+
+          '<div style="flex:1;min-width:0;font-weight:800;font-size:14px;">'+esc(state.school.name)+'</div></div>'+
+        '<div class="codebox">'+
+          '<div class="l">School code</div>'+
+          '<div class="c">'+esc(state.school.code)+'</div>'+
+          '<button class="cp" onclick="copyCode(state.school.code)">Copy code</button>'+
+        '</div>'+
+        '<button class="addmini" style="margin-top:10px;" onclick="inviteTeachers()">✉️ Invite teachers</button>'+
+        '<button class="addmini" style="margin-top:8px;" onclick="openSchoolPicker()">Change school</button>';
     } else {
       box.innerHTML = '<p style="font-size:13px;color:var(--muted);font-weight:600;margin:0 0 10px;">Not in a school yet. Join one so your classes compete automatically.</p>'+
         '<button class="addmini" onclick="openSchoolPicker()">🏫 Find or create your school</button>';
@@ -1142,6 +1208,7 @@
   window.openSettings = function(){
     var me=state.me;
     renderSetSchool();
+    loadTakenCrests(state.school ? state.school.code : null, me.code);
     setCrestVal=me.crest;
     document.getElementById("setCrest").textContent=me.crest;
     document.getElementById("setName").value=me.name;
@@ -1149,7 +1216,15 @@
     document.getElementById("sheet").classList.add("show");
   };
   window.closeSettings = function(){ document.getElementById("sheet").classList.remove("show"); };
-  window.cycleCrest = function(){ var i=CRESTS.indexOf(setCrestVal); setCrestVal=CRESTS[(i+1)%CRESTS.length]; document.getElementById("setCrest").textContent=setCrestVal; };
+  window.cycleCrest = function(){
+    var i = CRESTS.indexOf(setCrestVal);
+    // step forward to the next crest no other class at this school is using
+    for(var n=1; n<=CRESTS.length; n++){
+      var c = CRESTS[(i+n)%CRESTS.length];
+      if(takenCrests.indexOf(c) === -1){ setCrestVal = c; break; }
+    }
+    document.getElementById("setCrest").textContent = setCrestVal;
+  };
 
   var setKidsScratch=[], setJobsScratch=[];
   function renderSetKids(){
