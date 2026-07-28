@@ -27,7 +27,11 @@
     -webkit-font-smoothing:antialiased;
     min-height:100vh;
     padding:16px 14px calc(96px + env(safe-area-inset-bottom));
+    /* all-caps look throughout, incl. names teachers type in */
+    text-transform:uppercase;
+    letter-spacing:.02em;
   }
+  input, input::placeholder, textarea{ text-transform:uppercase; }
   .wrap{max-width:560px;margin:0 auto;}
   button{font-family:inherit;}
 
