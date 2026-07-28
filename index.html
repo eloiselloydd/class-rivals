@@ -453,7 +453,11 @@
 
     <button class="btn" onclick="saveSettings()">Save changes</button>
     <button class="btn ghost" onclick="newWeek()" style="margin-top:10px;">🏁 End week & crown star student</button>
-    <button class="btn danger" onclick="closeSettings()" style="margin-top:10px;">Close</button>
+    <button class="btn ghost" onclick="closeSettings()" style="margin-top:10px;">Close</button>
+    <button class="btn danger" onclick="resetDevice()" style="margin-top:22px;">↩️ Start fresh on this device</button>
+    <p style="text-align:center;font-size:11px;color:var(--muted);margin-top:8px;font-weight:600;line-height:1.45;">
+      Signs this device out of the class and returns to the start. Other teachers keep the class.
+    </p>
     <p style="text-align:center;font-size:11px;color:var(--muted);margin-top:16px;font-weight:600;">Class Rivals · prototype</p>
   </div>
 </div>
@@ -1363,6 +1367,18 @@
     var jobs=setJobsScratch.filter(function(j){return j.label.trim();}).map(function(j){ return {id:j.id,label:j.label.trim(),emoji:j.emoji||"⭐",pts:j.pts||0}; });
     if(jobs.length) state.me.jobs=jobs;
     save(); renderAll(); closeSettings(); toast("Saved!");
+  };
+
+  // sign this device out: stop syncing, wipe local data, back to onboarding.
+  // deliberately does NOT delete the class from the cloud — other teachers may still be using it.
+  window.resetDevice = function(){
+    var name = (state && state.me) ? state.me.name : "this class";
+    if(!confirm("Start fresh on this device?\n\nIt will stop syncing " + name + " here and take you back to the beginning. The class itself stays for anyone else using it.")) return;
+    sync.on = false;
+    if(sync.pollTimer) clearInterval(sync.pollTimer);
+    if(sync.pushTimer) clearTimeout(sync.pushTimer);
+    try{ localStorage.removeItem(STORE_KEY); }catch(e){}
+    location.replace(location.pathname + "?fresh=" + Date.now());
   };
 
   window.newWeek = function(){
