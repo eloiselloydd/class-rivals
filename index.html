@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F6F3EE">
+<title>Class Rivals</title>
+<style>
+  :root{
+    --cream:#F6F3EE;
+    --card:#FFFFFF;
+    --ink:#211E1C;
+    --indigo:#4C4B9E;
+    --indigo-tint:#e7e7f5;
+    --gold:#E0A422;
+    --gold-soft:#f7ecd2;
+    --line:rgba(33,30,28,.10);
+    --muted:rgba(33,30,28,.55);
+    --shadow:0 2px 0 rgba(33,30,28,.05), 0 14px 30px -16px rgba(76,75,158,.35);
+    --ok:#2f7d4f;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--cream);color:var(--ink);
+    font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    padding:16px 14px calc(96px + env(safe-area-inset-bottom));
+  }
+  .wrap{max-width:560px;margin:0 auto;}
+  button{font-family:inherit;}
+
+  /* ---------- Header ---------- */
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 2px 22px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .crest{font-size:30px;line-height:1;}
+  .brand h1{font-size:20px;margin:0;letter-spacing:.02em;font-weight:800;color:var(--indigo);text-transform:uppercase;}
+  .brand h1 small{display:block;font-size:9px;letter-spacing:.28em;color:var(--muted);font-weight:700;margin-top:3px;}
+  .gear{background:var(--card);border:2px solid var(--line);border-radius:12px;width:40px;height:40px;font-size:17px;cursor:pointer;color:var(--ink);}
+  .gear:active{transform:scale(.94);}
+
+  /* ---------- Family code pill ---------- */
+  .codebar{display:flex;align-items:center;gap:10px;background:var(--card);border:2px solid var(--line);border-radius:16px;padding:11px 14px;margin-bottom:20px;box-shadow:var(--shadow);}
+  .codebar .fam{flex:1;min-width:0;}
+  .codebar .fam .l{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+  .codebar .fam .n{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .codebar .code{font-size:14px;font-weight:800;letter-spacing:.08em;color:var(--indigo);background:var(--indigo-tint);border:none;border-radius:10px;padding:8px 12px;cursor:pointer;flex:none;}
+  .codebar .code:active{transform:scale(.96);}
+  .codebar .code b{font-weight:800;}
+
+  /* ---------- Section label ---------- */
+  .seclbl{display:flex;align-items:center;gap:10px;margin:24px 2px 12px;}
+  .seclbl .txt{font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:var(--muted);}
+  .seclbl .rule{flex:1;height:1px;background:var(--line);}
+  .seclbl .val{font-size:10px;font-weight:800;letter-spacing:.05em;color:var(--indigo);background:var(--indigo-tint);padding:3px 9px;border-radius:20px;}
+
+  /* ---------- Kid leaderboard ---------- */
+  .board{display:grid;gap:10px;margin-bottom:6px;}
+  .kid{position:relative;background:var(--card);border-radius:18px;padding:14px 14px;box-shadow:var(--shadow);border:2px solid transparent;display:flex;align-items:center;gap:14px;transition:transform .25s cubic-bezier(.2,.9,.3,1.2);}
+  .kid.leader{border-color:var(--c,#4C4B9E);transform:translateY(-3px);}
+  .kid .crown{position:absolute;top:-15px;left:16px;font-size:22px;opacity:0;transition:opacity .3s;}
+  .kid.leader .crown{opacity:1;}
+  .kid .av{width:46px;height:46px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:19px;background:var(--c,#4C4B9E);}
+  .kid .mid{flex:1;min-width:0;}
+  .kid .nm{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .kid .bar{height:6px;border-radius:4px;background:rgba(33,30,28,.07);margin-top:8px;overflow:hidden;}
+  .kid .bar span{display:block;height:100%;border-radius:4px;background:var(--c,#4C4B9E);width:0;transition:width .5s cubic-bezier(.2,.9,.3,1);}
+  .kid .pts{font-size:34px;font-weight:800;line-height:1;color:var(--c,#4C4B9E);flex:none;font-variant-numeric:tabular-nums;min-width:52px;text-align:right;}
+  .kid .pts.pop{animation:pop .45s cubic-bezier(.2,.9,.3,1.4);}
+  @keyframes pop{0%{transform:scale(1);}40%{transform:scale(1.35);}100%{transform:scale(1);}}
+
+  /* ---------- Prize ---------- */
+  .prize{background:var(--gold-soft);border:2px solid rgba(224,164,34,.35);border-radius:16px;padding:14px 16px;margin:20px 0;}
+  .prize .h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px;}
+  .prize .l{font-size:10px;letter-spacing:.15em;text-transform:uppercase;font-weight:800;color:#a4740f;}
+  .prize .edit{background:none;border:none;font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:10px;color:#a4740f;cursor:pointer;}
+  .prize .txt{font-size:17px;font-weight:700;line-height:1.25;}
+  .prize .txt.empty{opacity:.5;font-weight:600;}
+
+  /* ---------- Selector + chores ---------- */
+  .hint{font-size:12px;color:var(--muted);text-align:center;margin:6px 2px 14px;}
+  .hint b{color:var(--indigo);}
+  .pick{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px;}
+  .chip{border:2px solid var(--line);background:var(--card);border-radius:999px;padding:9px 14px;cursor:pointer;font-weight:800;font-size:13px;display:flex;align-items:center;gap:8px;transition:all .16s;}
+  .chip .dot{width:12px;height:12px;border-radius:50%;background:var(--c,#4C4B9E);flex:none;}
+  .chip.on{background:var(--c,#4C4B9E);color:#fff;border-color:transparent;}
+  .chip.on .dot{background:rgba(255,255,255,.9);}
+  .pick.nudge{animation:shake .4s;}
+  @keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
+
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+  .tile{position:relative;background:var(--card);border:2px solid var(--line);border-radius:16px;padding:14px 12px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;transition:transform .12s,box-shadow .18s,border-color .18s;overflow:hidden;}
+  .tile:active{transform:scale(.96);}
+  .tile.flash{border-color:var(--indigo);box-shadow:0 0 0 3px var(--indigo-tint);}
+  .tile .em{font-size:23px;flex:none;width:28px;text-align:center;}
+  .tile .cn{font-size:14px;font-weight:700;line-height:1.15;flex:1;min-width:0;}
+  .tile .pt{font-size:12px;font-weight:800;color:var(--indigo);background:var(--indigo-tint);border-radius:8px;padding:2px 7px;flex:none;}
+  .tile .pt.neg{color:#9a6a3a;background:#efe2d2;}
+
+  /* fly-up point */
+  .fly{position:fixed;z-index:60;font-weight:800;font-size:22px;color:var(--gold);pointer-events:none;animation:fly 1s ease-out forwards;}
+  @keyframes fly{0%{opacity:0;transform:translateY(0) scale(.6);}20%{opacity:1;}100%{opacity:0;transform:translateY(-70px) scale(1.2);}}
+
+  /* ---------- The League (families) ---------- */
+  .house{position:relative;background:var(--card);border-radius:18px;padding:14px;box-shadow:var(--shadow);border:2px solid transparent;display:flex;align-items:center;gap:14px;margin-bottom:10px;}
+  .house.mine{border-color:var(--indigo);}
+  .house.first{background:linear-gradient(180deg,#fff,var(--gold-soft));}
+  .house .rk{font-size:18px;font-weight:800;width:26px;text-align:center;flex:none;color:var(--muted);}
+  .house .rk.medal{font-size:22px;}
+  .house .em{font-size:30px;flex:none;}
+  .house .mid{flex:1;min-width:0;}
+  .house .hn{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .house .sub{font-size:11px;color:var(--muted);font-weight:600;margin-top:2px;}
+  .house .youtag{font-size:9px;font-weight:800;letter-spacing:.1em;color:var(--indigo);background:var(--indigo-tint);border-radius:6px;padding:2px 6px;margin-left:6px;vertical-align:middle;}
+  .house .tot{font-size:28px;font-weight:800;color:var(--indigo);flex:none;font-variant-numeric:tabular-nums;}
+  .house.first .tot{color:var(--gold);}
+
+  .addfriend{background:var(--card);border:2px dashed rgba(76,75,158,.35);border-radius:16px;padding:16px;text-align:center;margin-top:6px;}
+  .addfriend p{margin:0 0 12px;font-size:13px;color:var(--muted);font-weight:600;}
+  .addrow{display:flex;gap:8px;}
+  .addrow input{flex:1;min-width:0;border:2px solid var(--line);border-radius:12px;padding:12px;font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-family:inherit;background:#fff;color:var(--ink);}
+  .addrow input:focus{outline:none;border-color:var(--indigo);}
+  .addrow button{background:var(--indigo);color:#fff;border:none;border-radius:12px;padding:0 18px;font-weight:800;font-size:13px;cursor:pointer;flex:none;}
+  .addrow button:active{transform:scale(.96);}
+
+  /* ---------- Bottom nav ---------- */
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(246,243,238,.92);backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;padding:8px 12px calc(8px + env(safe-area-inset-bottom));gap:8px;}
+  .nav .navwrap{max-width:560px;margin:0 auto;display:flex;gap:8px;width:100%;}
+  .nav button{flex:1;background:none;border:none;padding:8px 0 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-weight:800;font-size:10px;letter-spacing:.04em;text-transform:uppercase;border-radius:12px;}
+  .nav button .ic{font-size:20px;line-height:1;}
+  .nav button.on{color:var(--indigo);background:var(--indigo-tint);}
+
+  /* ---------- Pages ---------- */
+  .page{display:none;}
+  .page.show{display:block;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+  /* ---------- Buttons ---------- */
+  .btn{display:block;width:100%;background:var(--indigo);color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:.02em;}
+  .btn:active{transform:scale(.98);}
+  .btn.ghost{background:var(--card);color:var(--ink);border:2px solid var(--line);}
+  .btn.gold{background:var(--gold);}
+  .btn.danger{background:#fff;color:#b0503a;border:2px solid #e7c6bd;}
+  .btn+.btn{margin-top:10px;}
+
+  /* ---------- Onboarding ---------- */
+  .onb{position:fixed;inset:0;z-index:100;background:var(--cream);overflow-y:auto;padding:28px 18px calc(28px + env(safe-area-inset-bottom));display:none;}
+  .onb.show{display:block;}
+  .onb .inner{max-width:460px;margin:0 auto;}
+  .onb .hero{text-align:center;margin:24px 0 28px;}
+  .onb .hero .big{font-size:56px;}
+  .onb .hero h2{font-size:30px;margin:14px 0 8px;color:var(--indigo);letter-spacing:.01em;font-weight:800;}
+  .onb .hero p{font-size:15px;color:var(--muted);line-height:1.5;margin:0;font-weight:600;}
+  .onb .step{display:none;}
+  .onb .step.show{display:block;}
+  .fld{margin-bottom:16px;}
+  .fld label{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--muted);margin:0 2px 7px;}
+  .fld input{width:100%;border:2px solid var(--line);border-radius:14px;padding:15px;font-size:16px;font-family:inherit;background:#fff;color:var(--ink);font-weight:600;}
+  .fld input:focus{outline:none;border-color:var(--indigo);}
+  .kidrow{display:flex;gap:8px;align-items:center;margin-bottom:9px;}
+  .kidrow .sw{width:34px;height:34px;border-radius:50%;flex:none;border:2px solid #fff;box-shadow:0 0 0 2px var(--line);cursor:pointer;}
+  .kidrow input{flex:1;border:2px solid var(--line);border-radius:12px;padding:12px;font-size:15px;font-family:inherit;background:#fff;color:var(--ink);font-weight:600;}
+  .kidrow .rm{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;flex:none;padding:4px 8px;}
+  .addkid{background:none;border:2px dashed var(--line);border-radius:12px;padding:12px;width:100%;font-weight:800;color:var(--indigo);cursor:pointer;font-size:13px;margin-bottom:20px;}
+  .codeshow{text-align:center;background:var(--card);border:2px solid var(--line);border-radius:18px;padding:26px 18px;margin:20px 0;box-shadow:var(--shadow);}
+  .codeshow .big{font-size:34px;font-weight:800;letter-spacing:.14em;color:var(--indigo);margin:8px 0;}
+  .codeshow p{font-size:13px;color:var(--muted);font-weight:600;margin:0;}
+
+  /* ---------- Settings sheet ---------- */
+  .sheet{position:fixed;inset:0;z-index:90;background:rgba(33,30,28,.4);display:none;align-items:flex-end;}
+  .sheet.show{display:flex;}
+  .sheet .panel{background:var(--cream);width:100%;max-height:90vh;overflow-y:auto;border-radius:22px 22px 0 0;padding:20px 18px calc(28px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto;}
+  .sheet h3{margin:2px 0 18px;font-size:18px;font-weight:800;color:var(--indigo);}
+  .setrow{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;}
+  .setrow .lab{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--muted);margin-bottom:8px;}
+  .miniedit{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .miniedit .sw{width:26px;height:26px;border-radius:50%;flex:none;border:2px solid #fff;box-shadow:0 0 0 2px var(--line);cursor:pointer;}
+  .miniedit input{flex:1;border:2px solid var(--line);border-radius:10px;padding:9px;font-size:14px;font-family:inherit;background:#fff;color:var(--ink);}
+  .miniedit input.pts{flex:none;width:56px;text-align:center;font-weight:800;}
+  .miniedit .rm{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;}
+  .addmini{background:none;border:2px dashed var(--line);border-radius:10px;padding:9px;width:100%;font-weight:800;color:var(--indigo);cursor:pointer;font-size:12px;}
+  .toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 18px;border-radius:999px;font-size:13px;font-weight:700;z-index:120;opacity:0;transition:opacity .25s;pointer-events:none;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<!-- ============ ONBOARDING ============ -->
+<div class="onb" id="onb">
+  <div class="inner">
+
+    <!-- welcome -->
+    <div class="step show" id="stepWelcome">
+      <div class="hero">
+        <div class="big">🍎</div>
+        <h2>Class Rivals</h2>
+        <p>Turn great behaviour into a game your class loves. Award points, crown a weekly star, and put your classroom up against other classes.</p>
+      </div>
+      <button class="btn" onclick="goStep('stepCreate')">Create your class</button>
+      <button class="btn ghost" onclick="goStep('stepJoin')">I've got a class code</button>
+    </div>
+
+    <!-- create -->
+    <div class="step" id="stepCreate">
+      <div class="hero"><div class="big">🏫</div><h2>Name your class</h2><p>This is what other classes will see on the league table.</p></div>
+      <div class="fld">
+        <label>Class name</label>
+        <input id="famNameIn" placeholder="e.g. Room 12 / Ms Shanahan's Class" maxlength="24">
+      </div>
+      <div class="fld">
+        <label>Pick your crest</label>
+        <div id="crestPick" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+      </div>
+      <label style="display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--muted);margin:6px 2px 9px;">Add your students</label>
+      <div id="kidBuild"></div>
+      <button class="addkid" onclick="addKidRow()">+ Add another student</button>
+      <button class="btn" onclick="createFamily()">Create class →</button>
+      <button class="btn ghost" onclick="goStep('stepWelcome')">Back</button>
+    </div>
+
+    <!-- code reveal -->
+    <div class="step" id="stepCode">
+      <div class="hero"><div class="big">🎉</div><h2>Class created!</h2><p>Share this code with another teacher to add their class to your league (works across schools too).</p></div>
+      <div class="codeshow">
+        <p>YOUR CLASS CODE</p>
+        <div class="big" id="revealCode">—</div>
+        <p>One class, one code.</p>
+      </div>
+      <button class="btn gold" onclick="copyCode(document.getElementById('revealCode').textContent)">Copy code</button>
+      <button class="btn" onclick="finishOnb()">Start awarding points →</button>
+    </div>
+
+    <!-- join -->
+    <div class="step" id="stepJoin">
+      <div class="hero"><div class="big">🔑</div><h2>Join a class</h2><p>Enter the code another teacher shared with you.</p></div>
+      <div class="fld">
+        <label>Class code</label>
+        <input id="joinCodeIn" placeholder="ABCD-1234" style="text-transform:uppercase;letter-spacing:.1em;font-weight:800;">
+      </div>
+      <p style="font-size:12px;color:var(--muted);text-align:center;margin:-6px 2px 16px;font-weight:600;">In this prototype, joining sets up a demo class so you can feel the flow. Live, it pulls your real class.</p>
+      <button class="btn" onclick="joinFamily()">Join class →</button>
+      <button class="btn ghost" onclick="goStep('stepWelcome')">Back</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============ MAIN APP ============ -->
+<div class="wrap" id="app" style="display:none;">
+  <header>
+    <div class="brand">
+      <span class="crest" id="hdrCrest">🍎</span>
+      <h1>Class Rivals<small id="hdrTag">CLASS VS CLASS</small></h1>
+    </div>
+    <button class="gear" onclick="openSettings()">⚙️</button>
+  </header>
+
+  <div class="codebar">
+    <div class="fam">
+      <div class="l">Your class</div>
+      <div class="n" id="cbName">—</div>
+    </div>
+    <button class="code" onclick="copyCode(state.me.code)">🔗 <b id="cbCode">—</b></button>
+  </div>
+
+  <!-- PAGE: MY HOUSE -->
+  <div class="page show" id="pgHouse">
+    <div class="seclbl"><span class="txt">This week</span><span class="rule"></span><span class="val" id="weekTotal">0 pts</span></div>
+    <div class="board" id="board"></div>
+
+    <div class="prize" id="prizeBox">
+      <div class="h"><span class="l">🎁 This week's class reward</span><button class="edit" onclick="editPrize()">Edit</button></div>
+      <div class="txt empty" id="prizeTxt">Tap edit to set the class reward…</div>
+    </div>
+
+    <div class="seclbl"><span class="txt">Award points</span><span class="rule"></span></div>
+    <div class="pick" id="picker"></div>
+    <div class="hint" id="pickHint">Pick a student, then tap what they did.</div>
+    <div class="grid" id="chores"></div>
+  </div>
+
+  <!-- PAGE: THE LEAGUE -->
+  <div class="page" id="pgLeague">
+    <div class="seclbl"><span class="txt">The league · this week</span><span class="rule"></span></div>
+    <div id="leagueList"></div>
+    <div class="addfriend">
+      <p>➕ Add another class by its code to see them on the league (same school or across schools).</p>
+      <div class="addrow">
+        <input id="friendCodeIn" placeholder="CLASS-CODE" maxlength="12">
+        <button onclick="addFriend()">Add</button>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:14px;font-weight:600;">Live, other classes' points update automatically. Here they're demo classes so the table feels real.</p>
+  </div>
+</div>
+
+<!-- ============ SETTINGS SHEET ============ -->
+<div class="sheet" id="sheet">
+  <div class="panel">
+    <h3>Settings</h3>
+
+    <div class="setrow">
+      <div class="lab">Class name & crest</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="setCrest" onclick="cycleCrest()" style="font-size:24px;background:#fff;border:2px solid var(--line);border-radius:10px;width:46px;height:46px;cursor:pointer;">🏆</button>
+        <input id="setName" style="flex:1;border:2px solid var(--line);border-radius:10px;padding:11px;font-size:15px;font-family:inherit;font-weight:700;color:var(--ink);background:#fff;">
+      </div>
+    </div>
+
+    <div class="setrow">
+      <div class="lab">Students</div>
+      <div id="setKids"></div>
+      <button class="addmini" onclick="setAddKid()">+ Add student</button>
+    </div>
+
+    <div class="setrow">
+      <div class="lab">Behaviours & points</div>
+      <div id="setJobs"></div>
+      <button class="addmini" onclick="setAddJob()">+ Add behaviour</button>
+    </div>
+
+    <button class="btn" onclick="saveSettings()">Save changes</button>
+    <button class="btn ghost" onclick="newWeek()" style="margin-top:10px;">🏁 End week & crown star student</button>
+    <button class="btn danger" onclick="closeSettings()" style="margin-top:10px;">Close</button>
+    <p style="text-align:center;font-size:11px;color:var(--muted);margin-top:16px;font-weight:600;">Class Rivals · prototype</p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- constants ----------
+  var CRESTS = ["🍎","🏫","🦉","🦁","🐻","🦊","🐬","🚀","⚡","🌟","📚","🍀"];
+  var COLOURS = ["#4C4B9E","#E0A422","#C4553B","#2f7d4f","#8E4585","#2b8a9e","#B5651D","#5B6C4F"];
+  var DEFAULT_JOBS = [
+    {id:"j1",label:"Great answer",emoji:"🙋",pts:1},
+    {id:"j2",label:"Helped a classmate",emoji:"🤝",pts:2},
+    {id:"j3",label:"On task",emoji:"🎯",pts:1},
+    {id:"j4",label:"Homework in",emoji:"📚",pts:2},
+    {id:"j5",label:"Super reading",emoji:"📖",pts:2},
+    {id:"j6",label:"Kind & respectful",emoji:"💛",pts:2},
+    {id:"j7",label:"Tidy space",emoji:"🧹",pts:1},
+    {id:"j8",label:"Great effort",emoji:"💪",pts:3}
+  ];
+  // demo classes so the league feels alive in the prototype
+  var DEMO_FRIENDS = [
+    {code:"RM05-7788",name:"Room 5",crest:"🦊",week:31,total:412},
+    {code:"PATE-3310",name:"Ms Patel's Class",crest:"🦉",week:24,total:388},
+    {code:"RM09-9021",name:"Room 9",crest:"🚀",week:42,total:505}
+  ];
+
+  var STORE_KEY = "classrivals_v1";
+  var state = null;
+  var selected = null;
+  var buildKids = [];        // onboarding scratch
+  var pickedCrest = "🍎";
+  window.state = null;
+
+  // ---------- storage ----------
+  function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} window.state = state; }
+  function load(){ try{ var v = localStorage.getItem(STORE_KEY); return v ? JSON.parse(v) : null; }catch(e){ return null; } }
+
+  // ---------- helpers ----------
+  function uid(p){ return (p||"x")+Math.random().toString(36).slice(2,7); }
+  function initialOf(n){ return (n||"?").trim().charAt(0).toUpperCase() || "?"; }
+  function makeCode(name){
+    var base = (name||"HOME").replace(/[^A-Za-z]/g,"").toUpperCase().slice(0,4) || "HOME";
+    while(base.length<4) base += "X";
+    return base + "-" + Math.floor(1000+Math.random()*9000);
+  }
+  function weekTotalOf(fam){ var t=0; fam.kids.forEach(function(k){ t+=fam.points[k.id]||0; }); return t; }
+  function toast(msg){ var t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(function(){t.classList.remove("show");},1800); }
+
+  window.copyCode = function(code){
+    if(!code) return;
+    if(navigator.clipboard){ navigator.clipboard.writeText(code).then(function(){toast("Code copied — share it with another teacher!");},function(){toast("Code: "+code);}); }
+    else toast("Code: "+code);
+  };
+
+  // ---------- onboarding ----------
+  window.goStep = function(id){
+    ["stepWelcome","stepCreate","stepCode","stepJoin"].forEach(function(s){
+      document.getElementById(s).classList.toggle("show", s===id);
+    });
+    if(id==="stepCreate" && !buildKids.length){ addKidRow(); addKidRow(); renderCrestPick(); }
+    window.scrollTo(0,0);
+  };
+
+  function renderCrestPick(){
+    var box=document.getElementById("crestPick"); box.innerHTML="";
+    CRESTS.forEach(function(c){
+      var b=document.createElement("button");
+      b.textContent=c;
+      b.style.cssText="font-size:24px;width:44px;height:44px;border-radius:12px;cursor:pointer;background:#fff;border:2px solid "+(c===pickedCrest?"var(--indigo)":"var(--line)");
+      b.onclick=function(){ pickedCrest=c; renderCrestPick(); };
+      box.appendChild(b);
+    });
+  }
+
+  window.addKidRow = function(){
+    var i = buildKids.length;
+    buildKids.push({id:uid("k"), name:"", colour:COLOURS[i%COLOURS.length]});
+    renderKidBuild();
+  };
+  function renderKidBuild(){
+    var box=document.getElementById("kidBuild"); box.innerHTML="";
+    buildKids.forEach(function(k,idx){
+      var row=document.createElement("div"); row.className="kidrow";
+      var sw=document.createElement("div"); sw.className="sw"; sw.style.background=k.colour;
+      sw.onclick=function(){ k.colour = COLOURS[(COLOURS.indexOf(k.colour)+1)%COLOURS.length]; sw.style.background=k.colour; };
+      var inp=document.createElement("input"); inp.placeholder="Student's name"; inp.value=k.name;
+      inp.oninput=function(){ k.name=inp.value; };
+      var rm=document.createElement("button"); rm.className="rm"; rm.textContent="×";
+      rm.onclick=function(){ buildKids.splice(idx,1); renderKidBuild(); };
+      row.appendChild(sw); row.appendChild(inp); if(buildKids.length>1) row.appendChild(rm);
+      box.appendChild(row);
+    });
+  }
+
+  window.createFamily = function(){
+    var name = document.getElementById("famNameIn").value.trim();
+    if(!name){ toast("Give your class a name first"); return; }
+    var kids = buildKids.filter(function(k){ return k.name.trim(); })
+      .map(function(k){ return {id:k.id, name:k.name.trim(), initial:initialOf(k.name), colour:k.colour}; });
+    if(!kids.length){ toast("Add at least one student"); return; }
+    var code = makeCode(name);
+    state = {
+      onboarded:true,
+      me:{ code:code, name:name, crest:pickedCrest, kids:kids, points:{}, jobs:DEFAULT_JOBS.map(function(j){return Object.assign({},j);}),
+           prize:"", allTime:0, week:weekKey() },
+      friends: DEMO_FRIENDS.map(function(f){ return Object.assign({},f); }),
+      champions:[]
+    };
+    kids.forEach(function(k){ state.me.points[k.id]=0; });
+    save();
+    document.getElementById("revealCode").textContent = code;
+    goStep("stepCode");
+  };
+
+  window.joinFamily = function(){
+    var code = document.getElementById("joinCodeIn").value.trim().toUpperCase();
+    if(!code){ toast("Enter a code"); return; }
+    // prototype: spin up a demo class under that code so the flow is explorable
+    var kids = [
+      {id:uid("k"),name:"Alex",initial:"A",colour:COLOURS[0]},
+      {id:uid("k"),name:"Sam",initial:"S",colour:COLOURS[1]},
+      {id:uid("k"),name:"Priya",initial:"P",colour:COLOURS[2]}
+    ];
+    state = {
+      onboarded:true,
+      me:{ code:code, name:"Your Class", crest:"🍎", kids:kids, points:{}, jobs:DEFAULT_JOBS.map(function(j){return Object.assign({},j);}),
+           prize:"", allTime:0, week:weekKey() },
+      friends: DEMO_FRIENDS.map(function(f){ return Object.assign({},f); }),
+      champions:[]
+    };
+    kids.forEach(function(k){ state.me.points[k.id]=0; });
+    save(); finishOnb();
+  };
+
+  window.finishOnb = function(){
+    document.getElementById("onb").classList.remove("show");
+    document.getElementById("app").style.display="block";
+    renderAll();
+  };
+
+  function weekKey(){
+    var d=new Date(); var day=(d.getDay()+6)%7; d.setDate(d.getDate()-day); // Monday start
+    return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+  }
+
+  // ---------- render ----------
+  function renderAll(){
+    var me=state.me;
+    document.getElementById("hdrCrest").textContent=me.crest;
+    document.getElementById("cbName").textContent=me.name;
+    document.getElementById("cbCode").textContent=me.code;
+    renderBoard(); renderPrize(); renderPicker(); renderChores(); renderLeague();
+  }
+
+  function renderBoard(){
+    var me=state.me, box=document.getElementById("board"); box.innerHTML="";
+    var sorted=me.kids.slice().sort(function(a,b){ return (me.points[b.id]||0)-(me.points[a.id]||0); });
+    var max=Math.max.apply(null,me.kids.map(function(k){return me.points[k.id]||0;}).concat([1]));
+    var top=(me.kids.length?Math.max.apply(null,me.kids.map(function(k){return me.points[k.id]||0;})):0);
+    sorted.forEach(function(k){
+      var p=me.points[k.id]||0;
+      var el=document.createElement("div");
+      el.className="kid"+(p>0&&p===top?" leader":"");
+      el.style.setProperty("--c",k.colour);
+      el.innerHTML='<div class="crown">👑</div>'+
+        '<div class="av">'+k.initial+'</div>'+
+        '<div class="mid"><div class="nm">'+esc(k.name)+'</div><div class="bar"><span style="width:'+Math.round((p/max)*100)+'%"></span></div></div>'+
+        '<div class="pts" data-k="'+k.id+'">'+p+'</div>';
+      box.appendChild(el);
+    });
+    document.getElementById("weekTotal").textContent=weekTotalOf(me)+" pts";
+  }
+
+  function renderPrize(){
+    var t=document.getElementById("prizeTxt");
+    if(state.me.prize){ t.textContent=state.me.prize; t.classList.remove("empty"); }
+    else { t.textContent="Tap edit to set the class reward…"; t.classList.add("empty"); }
+  }
+
+  function renderPicker(){
+    var me=state.me, box=document.getElementById("picker"); box.innerHTML="";
+    me.kids.forEach(function(k){
+      var c=document.createElement("button");
+      c.className="chip"+(selected===k.id?" on":"");
+      c.style.setProperty("--c",k.colour);
+      c.innerHTML='<span class="dot"></span>'+esc(k.name);
+      c.onclick=function(){ selected=(selected===k.id?null:k.id); renderPicker(); updateHint(); };
+      box.appendChild(c);
+    });
+  }
+  function updateHint(){
+    var h=document.getElementById("pickHint");
+    if(selected){ var k=state.me.kids.filter(function(x){return x.id===selected;})[0];
+      h.innerHTML="Awarding to <b>"+esc(k.name)+"</b> — tap what they did."; }
+    else h.textContent="Pick a student, then tap what they did.";
+  }
+
+  function renderChores(){
+    var me=state.me, box=document.getElementById("chores"); box.innerHTML="";
+    me.jobs.forEach(function(j){
+      var t=document.createElement("button"); t.className="tile";
+      t.innerHTML='<span class="em">'+j.emoji+'</span><span class="cn">'+esc(j.label)+'</span>'+
+        '<span class="pt'+(j.pts<0?" neg":"")+'">'+(j.pts>0?"+":"")+j.pts+'</span>';
+      t.onclick=function(ev){ award(j, t, ev); };
+      box.appendChild(t);
+    });
+  }
+
+  function award(job, tile, ev){
+    if(!selected){
+      var p=document.getElementById("picker"); p.classList.add("nudge"); setTimeout(function(){p.classList.remove("nudge");},420);
+      toast("Pick a student first ☝️"); return;
+    }
+    var me=state.me;
+    me.points[selected]=(me.points[selected]||0)+job.pts;
+    if(me.points[selected]<0) me.points[selected]=0;
+    me.allTime=Math.max(0,(me.allTime||0)+job.pts);
+    // keep my own league row in sync
+    save();
+    tile.classList.add("flash"); setTimeout(function(){tile.classList.remove("flash");},260);
+    flyPoint(ev, job.pts);
+    renderBoard();
+    var pill=document.querySelector('.pts[data-k="'+selected+'"]');
+    if(pill){ pill.classList.remove("pop"); void pill.offsetWidth; pill.classList.add("pop"); }
+  }
+
+  function flyPoint(ev,pts){
+    var f=document.createElement("div"); f.className="fly";
+    f.textContent=(pts>0?"+":"")+pts;
+    f.style.color = pts<0 ? "#b0503a" : "var(--gold)";
+    var x=ev?ev.clientX:window.innerWidth/2, y=ev?ev.clientY:200;
+    f.style.left=(x-10)+"px"; f.style.top=(y-20)+"px";
+    document.body.appendChild(f); setTimeout(function(){f.remove();},1000);
+  }
+
+  window.editPrize = function(){
+    var v=prompt("What's this week's class reward?", state.me.prize||"");
+    if(v!==null){ state.me.prize=v.trim(); save(); renderPrize(); }
+  };
+
+  // ---------- league ----------
+  function renderLeague(){
+    var box=document.getElementById("leagueList"); box.innerHTML="";
+    var mine={ code:state.me.code, name:state.me.name, crest:state.me.crest, week:weekTotalOf(state.me), total:(state.me.allTime||0), mine:true };
+    var rows=[mine].concat(state.friends.map(function(f){ return {code:f.code,name:f.name,crest:f.crest,week:f.week,total:f.total,mine:false}; }));
+    rows.sort(function(a,b){ return b.week-a.week; });
+    var medals=["🥇","🥈","🥉"];
+    rows.forEach(function(r,i){
+      var el=document.createElement("div");
+      el.className="house"+(r.mine?" mine":"")+(i===0?" first":"");
+      var rk = i<3 ? '<div class="rk medal">'+medals[i]+'</div>' : '<div class="rk">'+(i+1)+'</div>';
+      el.innerHTML=rk+
+        '<div class="em">'+r.crest+'</div>'+
+        '<div class="mid"><div class="hn">'+esc(r.name)+(r.mine?'<span class="youtag">YOU</span>':'')+'</div>'+
+        '<div class="sub">'+r.total+' all-time · '+r.code+'</div></div>'+
+        '<div class="tot">'+r.week+'</div>';
+      box.appendChild(el);
+    });
+  }
+
+  window.addFriend = function(){
+    var code=document.getElementById("friendCodeIn").value.trim().toUpperCase();
+    if(!code){ toast("Enter their code"); return; }
+    if(code===state.me.code){ toast("That's your own class 🙂"); return; }
+    if(state.friends.some(function(f){return f.code===code;})){ toast("Already on your league"); return; }
+    // prototype: create a demo class for that code
+    var names=["Room 3","Room 7","Mr Kelly's Class","Room 1","Ms Tran's Class","Room 6"];
+    var crest=CRESTS[Math.floor(Math.random()*CRESTS.length)];
+    state.friends.push({ code:code, name:names[Math.floor(Math.random()*names.length)], crest:crest,
+      week:Math.floor(3+Math.random()*18), total:Math.floor(40+Math.random()*260) });
+    save();
+    document.getElementById("friendCodeIn").value="";
+    renderLeague();
+    toast("Class added to your league!");
+  };
+
+  // ---------- navigation ----------
+  window.showPage = function(id, btn){
+    document.getElementById("pgHouse").classList.toggle("show", id==="pgHouse");
+    document.getElementById("pgLeague").classList.toggle("show", id==="pgLeague");
+    document.querySelectorAll(".nav button").forEach(function(b){ b.classList.remove("on"); });
+    if(btn) btn.classList.add("on");
+    if(id==="pgLeague") renderLeague();  // refresh with current week + all-time totals
+    window.scrollTo(0,0);
+  };
+
+  // ---------- settings ----------
+  var setCrestVal="🏆";
+  window.openSettings = function(){
+    var me=state.me;
+    setCrestVal=me.crest;
+    document.getElementById("setCrest").textContent=me.crest;
+    document.getElementById("setName").value=me.name;
+    renderSetKids(); renderSetJobs();
+    document.getElementById("sheet").classList.add("show");
+  };
+  window.closeSettings = function(){ document.getElementById("sheet").classList.remove("show"); };
+  window.cycleCrest = function(){ var i=CRESTS.indexOf(setCrestVal); setCrestVal=CRESTS[(i+1)%CRESTS.length]; document.getElementById("setCrest").textContent=setCrestVal; };
+
+  var setKidsScratch=[], setJobsScratch=[];
+  function renderSetKids(){
+    setKidsScratch = state.me.kids.map(function(k){ return Object.assign({},k); });
+    drawSetKids();
+  }
+  function drawSetKids(){
+    var box=document.getElementById("setKids"); box.innerHTML="";
+    setKidsScratch.forEach(function(k,idx){
+      var row=document.createElement("div"); row.className="miniedit";
+      var sw=document.createElement("div"); sw.className="sw"; sw.style.background=k.colour;
+      sw.onclick=function(){ k.colour=COLOURS[(COLOURS.indexOf(k.colour)+1)%COLOURS.length]; sw.style.background=k.colour; };
+      var inp=document.createElement("input"); inp.value=k.name; inp.oninput=function(){ k.name=inp.value; };
+      var rm=document.createElement("button"); rm.className="rm"; rm.textContent="×"; rm.onclick=function(){ setKidsScratch.splice(idx,1); drawSetKids(); };
+      row.appendChild(sw); row.appendChild(inp); if(setKidsScratch.length>1) row.appendChild(rm);
+      box.appendChild(row);
+    });
+  }
+  window.setAddKid = function(){ setKidsScratch.push({id:uid("k"),name:"",colour:COLOURS[setKidsScratch.length%COLOURS.length]}); drawSetKids(); };
+
+  function renderSetJobs(){
+    setJobsScratch = state.me.jobs.map(function(j){ return Object.assign({},j); });
+    drawSetJobs();
+  }
+  function drawSetJobs(){
+    var box=document.getElementById("setJobs"); box.innerHTML="";
+    setJobsScratch.forEach(function(j,idx){
+      var row=document.createElement("div"); row.className="miniedit";
+      var em=document.createElement("input"); em.value=j.emoji; em.style.cssText="flex:none;width:44px;text-align:center;border:2px solid var(--line);border-radius:10px;padding:9px;font-family:inherit;background:#fff;color:var(--ink);"; em.oninput=function(){ j.emoji=em.value; };
+      var inp=document.createElement("input"); inp.value=j.label; inp.oninput=function(){ j.label=inp.value; };
+      var pt=document.createElement("input"); pt.className="pts"; pt.type="number"; pt.value=j.pts; pt.oninput=function(){ j.pts=parseInt(pt.value,10)||0; };
+      var rm=document.createElement("button"); rm.className="rm"; rm.textContent="×"; rm.onclick=function(){ setJobsScratch.splice(idx,1); drawSetJobs(); };
+      row.appendChild(em); row.appendChild(inp); row.appendChild(pt); row.appendChild(rm);
+      box.appendChild(row);
+    });
+  }
+  window.setAddJob = function(){ setJobsScratch.push({id:uid("j"),label:"",emoji:"⭐",pts:1}); drawSetJobs(); };
+
+  window.saveSettings = function(){
+    var name=document.getElementById("setName").value.trim();
+    if(name) state.me.name=name;
+    state.me.crest=setCrestVal;
+    var kids=setKidsScratch.filter(function(k){return k.name.trim();}).map(function(k){ return {id:k.id,name:k.name.trim(),initial:initialOf(k.name),colour:k.colour}; });
+    if(kids.length) state.me.kids=kids;
+    // reconcile points map
+    var np={}; state.me.kids.forEach(function(k){ np[k.id]=state.me.points[k.id]||0; }); state.me.points=np;
+    if(selected && !state.me.kids.some(function(k){return k.id===selected;})) selected=null;
+    var jobs=setJobsScratch.filter(function(j){return j.label.trim();}).map(function(j){ return {id:j.id,label:j.label.trim(),emoji:j.emoji||"⭐",pts:j.pts||0}; });
+    if(jobs.length) state.me.jobs=jobs;
+    save(); renderAll(); closeSettings(); toast("Saved!");
+  };
+
+  window.newWeek = function(){
+    var me=state.me;
+    var w=winnerOf(me);
+    if(w){ state.champions.unshift({week:me.week, name:w.names.join(" & "), pts:w.pts}); }
+    me.kids.forEach(function(k){ me.points[k.id]=0; });
+    me.week=weekKey();
+    selected=null;
+    save(); renderAll(); closeSettings();
+    toast(w ? ("⭐ Star student: "+w.names.join(" & ")+"! New week started.") : "New week started.");
+  };
+  function winnerOf(fam){
+    var max=Math.max.apply(null,fam.kids.map(function(k){return fam.points[k.id]||0;}).concat([0]));
+    if(max<=0) return null;
+    return {names:fam.kids.filter(function(k){return (fam.points[k.id]||0)===max;}).map(function(k){return k.name;}), pts:max};
+  }
+
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+
+  // ---------- bottom nav (built dynamically so markup stays clean) ----------
+  function buildNav(){
+    var nav=document.createElement("div"); nav.className="nav";
+    nav.innerHTML='<div class="navwrap">'+
+      '<button class="on" id="navHouse"><span class="ic">🍎</span>My Class</button>'+
+      '<button id="navLeague"><span class="ic">🏆</span>The League</button></div>';
+    document.body.appendChild(nav);
+    document.getElementById("navHouse").onclick=function(){ showPage("pgHouse", this); };
+    document.getElementById("navLeague").onclick=function(){ showPage("pgLeague", this); };
+  }
+
+  // ---------- boot ----------
+  function boot(){
+    buildNav();
+    state=load(); window.state=state;
+    if(state && state.onboarded){
+      document.getElementById("app").style.display="block";
+      renderAll();
+    } else {
+      document.getElementById("onb").classList.add("show");
+    }
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
