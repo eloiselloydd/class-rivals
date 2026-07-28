@@ -71,6 +71,14 @@
   .kid .bar span{display:block;height:100%;border-radius:4px;background:var(--c,#4C4B9E);width:0;transition:width .5s cubic-bezier(.2,.9,.3,1);}
   .kid .pts{font-size:34px;font-weight:800;line-height:1;color:var(--c,#4C4B9E);flex:none;font-variant-numeric:tabular-nums;min-width:52px;text-align:right;}
   .kid .pts.pop{animation:pop .45s cubic-bezier(.2,.9,.3,1.4);}
+  .kid .pl{font-size:20px;flex:none;width:24px;text-align:center;line-height:1;}
+  .fullbtn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;background:var(--card);border:2px dashed rgba(76,75,158,.3);border-radius:14px;padding:13px;font-size:13px;font-weight:800;color:var(--indigo);cursor:pointer;margin-top:2px;font-family:inherit;}
+  .fullbtn:active{transform:scale(.98);}
+  .lbrow{display:flex;align-items:center;gap:12px;background:var(--card);border:2px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;}
+  .lbrow .pos{font-size:15px;font-weight:800;color:var(--muted);width:28px;text-align:center;flex:none;}
+  .lbrow .av{width:32px;height:32px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;background:var(--c,#4C4B9E);}
+  .lbrow .nm{flex:1;min-width:0;font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .lbrow .pt{font-size:20px;font-weight:800;color:var(--c,#4C4B9E);font-variant-numeric:tabular-nums;flex:none;}
   @keyframes pop{0%{transform:scale(1);}40%{transform:scale(1.35);}100%{transform:scale(1);}}
 
   /* ---------- Prize ---------- */
@@ -333,8 +341,9 @@
 
   <!-- PAGE: MY HOUSE -->
   <div class="page show" id="pgHouse">
-    <div class="seclbl"><span class="txt">This week</span><span class="rule"></span><span class="val" id="weekTotal">0 pts</span></div>
+    <div class="seclbl"><span class="txt">Top of the class</span><span class="rule"></span><span class="val" id="weekTotal">0 pts</span></div>
     <div class="board" id="board"></div>
+    <button class="fullbtn" id="fullBtn" onclick="openLeaderboard()" hidden>🏅 Full leaderboard</button>
 
     <div class="prize" id="prizeBox">
       <div class="h"><span class="l">🎁 This week's class reward</span><button class="edit" onclick="editPrize()">Edit</button></div>
@@ -380,6 +389,11 @@
     <h3>Settings</h3>
 
     <div class="setrow">
+      <div class="lab">Your school</div>
+      <div id="setSchool"></div>
+    </div>
+
+    <div class="setrow">
       <div class="lab">Class name & crest</div>
       <div style="display:flex;gap:8px;align-items:center;">
         <button id="setCrest" onclick="cycleCrest()" style="font-size:24px;background:#fff;border:2px solid var(--line);border-radius:10px;width:46px;height:46px;cursor:pointer;">🏆</button>
@@ -403,6 +417,15 @@
     <button class="btn ghost" onclick="newWeek()" style="margin-top:10px;">🏁 End week & crown star student</button>
     <button class="btn danger" onclick="closeSettings()" style="margin-top:10px;">Close</button>
     <p style="text-align:center;font-size:11px;color:var(--muted);margin-top:16px;font-weight:600;">Class Rivals · prototype</p>
+  </div>
+</div>
+
+<!-- ============ FULL LEADERBOARD SHEET ============ -->
+<div class="sheet" id="lbSheet">
+  <div class="panel">
+    <h3 id="lbTitle">🏅 Full leaderboard</h3>
+    <div id="lbList"></div>
+    <button class="btn" onclick="closeLeaderboard()" style="margin-top:16px;">Done</button>
   </div>
 </div>
 
@@ -617,6 +640,7 @@
     var code = document.getElementById("schoolCodeIn").value.trim().toUpperCase();
     if(!code){ toast("Enter the school code"); return; }
     if(code !== pendingSchool.code){ toast("That code doesn't match this school"); return; }
+    if(schoolOnlyMode){ attachSchoolToExistingClass(); return; }
     toast("Joined "+pendingSchool.name+"!");
     goStep("stepCreate");
   };
@@ -643,6 +667,7 @@
       if(!r.ok){ toast("Couldn't create the school, try again"); return; }
     }catch(e){ toast("Couldn't reach the server"); return; }
     pendingSchool = { code:code, name:name, suburb:suburb };
+    if(schoolOnlyMode){ attachSchoolToExistingClass(); return; }
     toast("School created!");
     goStep("stepCreate");
   };
@@ -757,12 +782,22 @@
     var sorted=me.kids.slice().sort(function(a,b){ return (me.points[b.id]||0)-(me.points[a.id]||0); });
     var max=Math.max.apply(null,me.kids.map(function(k){return me.points[k.id]||0;}).concat([1]));
     var top=(me.kids.length?Math.max.apply(null,me.kids.map(function(k){return me.points[k.id]||0;})):0);
-    sorted.forEach(function(k){
+    // quick view: podium only. the rest live behind the full leaderboard.
+    var podium = sorted.slice(0,3);
+    var btn = document.getElementById("fullBtn");
+    if(btn){
+      var rest = me.kids.length - podium.length;
+      btn.hidden = me.kids.length <= 3;
+      btn.textContent = "🏅 Full leaderboard" + (rest>0 ? "  ·  "+rest+" more" : "");
+    }
+    var medals=["🥇","🥈","🥉"];
+    podium.forEach(function(k,idx){
       var p=me.points[k.id]||0;
       var el=document.createElement("div");
       el.className="kid"+(p>0&&p===top?" leader":"");
       el.style.setProperty("--c",k.colour);
       el.innerHTML='<div class="crown">👑</div>'+
+        '<div class="pl">'+medals[idx]+'</div>'+
         '<div class="av">'+k.initial+'</div>'+
         '<div class="mid"><div class="nm">'+esc(k.name)+'</div><div class="bar"><span style="width:'+Math.round((p/max)*100)+'%"></span></div></div>'+
         '<div class="pts" data-k="'+k.id+'">'+p+'</div>';
@@ -831,6 +866,29 @@
     var x=ev?ev.clientX:window.innerWidth/2, y=ev?ev.clientY:200;
     f.style.left=(x-10)+"px"; f.style.top=(y-20)+"px";
     document.body.appendChild(f); setTimeout(function(){f.remove();},1000);
+  }
+
+  // ---------- full class leaderboard ----------
+  window.openLeaderboard = function(){
+    renderLeaderboard();
+    document.getElementById("lbSheet").classList.add("show");
+  };
+  window.closeLeaderboard = function(){ document.getElementById("lbSheet").classList.remove("show"); };
+  function renderLeaderboard(){
+    var me=state.me, box=document.getElementById("lbList"); box.innerHTML="";
+    document.getElementById("lbTitle").textContent = "🏅 "+me.name+" · this week";
+    var sorted=me.kids.slice().sort(function(a,b){ return (me.points[b.id]||0)-(me.points[a.id]||0); });
+    var medals=["🥇","🥈","🥉"];
+    sorted.forEach(function(k,i){
+      var p=me.points[k.id]||0;
+      var row=document.createElement("div"); row.className="lbrow";
+      row.style.setProperty("--c",k.colour);
+      row.innerHTML='<div class="pos">'+(i<3?medals[i]:(i+1))+'</div>'+
+        '<div class="av">'+k.initial+'</div>'+
+        '<div class="nm">'+esc(k.name)+'</div>'+
+        '<div class="pt">'+p+'</div>';
+      box.appendChild(row);
+    });
   }
 
   window.editPrize = function(){
@@ -972,8 +1030,45 @@
 
   // ---------- settings ----------
   var setCrestVal="🏆";
+  // let an EXISTING class join or create a school (onboarding isn't the only way in)
+  var schoolOnlyMode = false;
+  window.openSchoolPicker = function(){
+    schoolOnlyMode = true;
+    closeSettings();
+    pendingSchool = null;
+    document.getElementById("schoolSearchIn").value = "";
+    renderSchoolResults([], "");
+    var w = document.getElementById("dupeWarn"); if(w){ w.innerHTML=""; delete w.dataset.warned; }
+    document.getElementById("onb").classList.add("show");
+    goStep("stepSchool");
+  };
+  function attachSchoolToExistingClass(){
+    state.school = { code:pendingSchool.code, name:pendingSchool.name, suburb:pendingSchool.suburb };
+    save();
+    pushMine();
+    schoolOnlyMode = false;
+    document.getElementById("onb").classList.remove("show");
+    renderAll();
+    loadSchoolMates().then(renderLeague);
+    toast("Joined "+pendingSchool.name+"!");
+  }
+  function renderSetSchool(){
+    var box = document.getElementById("setSchool"); if(!box) return;
+    if(state.school){
+      box.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">'+
+        '<span style="font-size:22px;">🏫</span>'+
+        '<div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:14px;">'+esc(state.school.name)+'</div>'+
+        '<div style="font-size:11px;color:var(--muted);font-weight:600;">Code '+esc(state.school.code)+'</div></div></div>'+
+        '<button class="addmini" style="margin-top:10px;" onclick="openSchoolPicker()">Change school</button>';
+    } else {
+      box.innerHTML = '<p style="font-size:13px;color:var(--muted);font-weight:600;margin:0 0 10px;">Not in a school yet. Join one so your classes compete automatically.</p>'+
+        '<button class="addmini" onclick="openSchoolPicker()">🏫 Find or create your school</button>';
+    }
+  }
+
   window.openSettings = function(){
     var me=state.me;
+    renderSetSchool();
     setCrestVal=me.crest;
     document.getElementById("setCrest").textContent=me.crest;
     document.getElementById("setName").value=me.name;
