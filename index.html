@@ -1184,6 +1184,10 @@
       }
       if(!state.friends) state.friends = [];
       if(state.rev === undefined) state.rev = 0;
+      // never leave a class with nothing to award
+      if(!state.me.jobs || !state.me.jobs.length) state.me.jobs = DEFAULT_JOBS.map(function(j){ return Object.assign({},j); });
+      if(!state.me.points) state.me.points = {};
+      state.me.kids.forEach(function(k){ if(typeof state.me.points[k.id] !== "number") state.me.points[k.id] = 0; });
       document.getElementById("app").style.display="block";
       renderAll();
       startSync();
