@@ -101,6 +101,8 @@
   .codebox .c{font-size:24px;font-weight:800;letter-spacing:.12em;color:var(--indigo);margin:4px 0 8px;}
   .codebox .cp{background:var(--indigo);color:#fff;border:none;border-radius:9px;padding:8px 16px;font-size:11px;font-weight:800;letter-spacing:.06em;cursor:pointer;font-family:inherit;}
   .codebox .cp:active{transform:scale(.96);}
+  /* fixed 6 columns so the 36 crests always sit 6 to a row on any screen */
+  .crestgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;}
   @keyframes pop{0%{transform:scale(1);}40%{transform:scale(1.35);}100%{transform:scale(1);}}
 
   /* ---------- Prize ---------- */
@@ -299,7 +301,7 @@
       </div>
       <div class="fld">
         <label>Pick your crest</label>
-        <div id="crestPick" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+        <div id="crestPick" class="crestgrid"></div>
       </div>
       <label style="display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--muted);margin:6px 2px 9px;">Add your students</label>
       <div id="kidBuild"></div>
@@ -475,8 +477,8 @@
     "🐧","🍎","🦉","🦁","🐻","🦊","🐬","🐢","🐨","🐼",
     "🦜","🐙","🦖","🦄","🐝","🦋","🐳","🦩","🐸","🦔",
     "🚀","⚡","🌟","🌈","🔥","🍀","📚","🎨","🎵","⚽",
-    "🏀","🌸","🦕","🐲","🏫"
-  ];
+    "🏀","🌸","🦕","🐲","🦅","🏫"
+  ];   // 36 = exactly 6 rows of 6 in the picker grid
   var COLOURS = ["#4C4B9E","#E0A422","#C4553B","#2f7d4f","#8E4585","#2b8a9e","#B5651D","#5B6C4F"];
   var DEFAULT_JOBS = [
     {id:"j1",label:"Book bag in basket",emoji:"🎒",pts:1},
@@ -748,7 +750,7 @@
       var b=document.createElement("button");
       b.textContent=c;
       b.title = taken ? "Already used by another class" : "";
-      b.style.cssText="position:relative;font-size:24px;width:44px;height:44px;border-radius:12px;background:#fff;border:2px solid "+
+      b.style.cssText="position:relative;font-size:24px;width:100%;aspect-ratio:1;padding:0;border-radius:12px;background:#fff;border:2px solid "+
         (c===pickedCrest?"var(--indigo)":"var(--line)")+";"+
         (taken ? "opacity:.28;cursor:not-allowed;filter:grayscale(1);" : "cursor:pointer;");
       b.onclick=function(){
